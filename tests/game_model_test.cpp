@@ -454,6 +454,162 @@ static void randomWalk_alwaysObeysTheRules() {
 }
 
 // ---------------------------------------------------------------------------
+// Facing direction
+// The player starts facing DOWN. EVERY tryMove() call turns the player to the
+// requested direction, whether the move succeeds or is blocked. An invalid
+// Direction value changes nothing.
+// ---------------------------------------------------------------------------
+
+static const char *directionName(Direction d) {
+  switch (d) {
+  case Direction::UP:
+    return "UP";
+  case Direction::DOWN:
+    return "DOWN";
+  case Direction::LEFT:
+    return "LEFT";
+  case Direction::RIGHT:
+    return "RIGHT";
+  }
+  return "?";
+}
+
+static void checkFacingImpl(const GameModel &m, Direction expected, int line) {
+  const Direction actual = m.facingDirection();
+  if (actual != expected) {
+    std::cerr << "  FAIL line " << line << ": expected facing "
+              << directionName(expected) << " but was " << directionName(actual)
+              << "\n";
+    ++g_failures;
+  }
+}
+#define CHECK_FACING(model, expected)                                          \
+  checkFacingImpl((model), (expected), __LINE__)
+
+static void facing_startsDown() {
+  GameModel m;
+  CHECK_FACING(m, Direction::DOWN);
+}
+
+// Successful moves. Each one checks position too, so we know it really moved.
+
+static void facing_successfulMoveUpTurnsUp() {
+  GameModel m;
+  CHECK(m.tryMove(Direction::UP));
+  CHECK_POS(m, 1, 0);
+  CHECK_FACING(m, Direction::UP);
+}
+
+static void facing_successfulMoveLeftTurnsLeft() {
+  GameModel m;
+  CHECK(m.tryMove(Direction::LEFT));
+  CHECK_POS(m, 0, 1);
+  CHECK_FACING(m, Direction::LEFT);
+}
+
+static void facing_successfulMoveRightTurnsRight() {
+  GameModel m;
+  CHECK(m.tryMove(Direction::RIGHT));
+  CHECK_POS(m, 2, 1);
+  CHECK_FACING(m, Direction::RIGHT);
+}
+
+// The default is already DOWN, so turn away first or this proves nothing.
+static void facing_successfulMoveDownTurnsDown() {
+  GameModel m;
+  CHECK(m.tryMove(Direction::RIGHT)); // (2,1), facing RIGHT
+  CHECK(m.tryMove(Direction::DOWN));  // (2,2)
+  CHECK_POS(m, 2, 2);
+  CHECK_FACING(m, Direction::DOWN);
+}
+
+static void facing_followsTheLastRequestedDirection() {
+  GameModel m;
+  CHECK(m.tryMove(Direction::RIGHT));
+  CHECK(m.tryMove(Direction::DOWN));
+  CHECK(m.tryMove(Direction::LEFT));
+  CHECK(m.tryMove(Direction::UP));
+  CHECK_POS(m, 1, 1);
+  CHECK_FACING(m, Direction::UP);
+}
+
+// Blocked moves. Each one starts facing a DIFFERENT way than the blocked
+// request, so the turn is visible.
+
+static void facing_blockedByObstacleStillTurns() {
+  GameModel m;
+  MOVE(m, Direction::DOWN, 8);   // (1,9)
+  MOVE(m, Direction::RIGHT, 12); // (13,9)
+  MOVE(m, Direction::UP, 1); // (13,8), facing UP; wall at (14,8) to the right
+  CHECK_POS(m, 13, 8);
+  CHECK_FACING(m, Direction::UP);
+
+  CHECK(!m.tryMove(Direction::RIGHT));
+  CHECK_POS(m, 13, 8);               // did not move
+  CHECK_FACING(m, Direction::RIGHT); // but turned
+}
+
+static void facing_blockedFromBelowStillTurnsUp() {
+  GameModel m;
+  MOVE(m, Direction::DOWN, 8);   // (1,9)
+  MOVE(m, Direction::RIGHT, 13); // (14,9), facing RIGHT; wall at (14,8) above
+  CHECK_FACING(m, Direction::RIGHT);
+
+  CHECK(!m.tryMove(Direction::UP));
+  CHECK_POS(m, 14, 9);
+  CHECK_FACING(m, Direction::UP);
+}
+
+static void facing_blockedByMapEdgeStillTurns() {
+  GameModel m;
+  MOVE(m, Direction::UP, 1);   // (1,0)
+  MOVE(m, Direction::LEFT, 1); // (0,0), facing LEFT, in the top-left corner
+  CHECK_FACING(m, Direction::LEFT);
+
+  CHECK(!m.tryMove(Direction::UP)); // off the top of the map
+  CHECK_POS(m, 0, 0);
+  CHECK_FACING(m, Direction::UP);
+}
+
+// (13,8) has walls above (13,7) and to the right (14,8): two different blocked
+// directions from one tile, so facing must follow each attempt.
+static void facing_followsEachBlockedAttemptOnTheSameTile() {
+  GameModel m;
+  MOVE(m, Direction::DOWN, 8);   // (1,9)
+  MOVE(m, Direction::RIGHT, 12); // (13,9)
+  MOVE(m, Direction::UP, 1);     // (13,8)
+
+  CHECK(!m.tryMove(Direction::UP));
+  CHECK_FACING(m, Direction::UP);
+  CHECK(!m.tryMove(Direction::RIGHT));
+  CHECK_FACING(m, Direction::RIGHT);
+  CHECK(!m.tryMove(Direction::UP));
+  CHECK_FACING(m, Direction::UP);
+  CHECK_POS(m, 13, 8);
+}
+
+// Invalid / separate state
+
+static void facing_invalidDirectionIsIgnored() {
+  GameModel m;
+  CHECK(!m.tryMove(static_cast<Direction>(99)));
+  CHECK_FACING(m, Direction::DOWN); // untouched at the start
+
+  CHECK(m.tryMove(Direction::RIGHT));
+  CHECK(!m.tryMove(static_cast<Direction>(99)));
+  CHECK_FACING(m, Direction::RIGHT); // untouched after a real move
+  CHECK_POS(m, 2, 1);
+}
+
+static void facing_eachModelHasItsOwnFacing() {
+  GameModel a;
+  GameModel b;
+  CHECK(a.tryMove(Direction::RIGHT));
+  CHECK_FACING(a, Direction::RIGHT);
+  CHECK_FACING(b, Direction::DOWN); // b must not be affected by a
+}
+
+// ---------------------------------------------------------------------------
 // Runner: prints one line per test so you can see exactly which one failed.
 // ---------------------------------------------------------------------------
 
@@ -505,6 +661,19 @@ int main() {
   RUN(edge_rightBlocksMovingRight);
   RUN(corner_topLeftBlocksUpAndLeft);
   RUN(corner_bottomRightBlocksDownAndRight);
+
+  RUN(facing_startsDown);
+  RUN(facing_successfulMoveUpTurnsUp);
+  RUN(facing_successfulMoveLeftTurnsLeft);
+  RUN(facing_successfulMoveRightTurnsRight);
+  RUN(facing_successfulMoveDownTurnsDown);
+  RUN(facing_followsTheLastRequestedDirection);
+  RUN(facing_blockedByObstacleStillTurns);
+  RUN(facing_blockedFromBelowStillTurnsUp);
+  RUN(facing_blockedByMapEdgeStillTurns);
+  RUN(facing_followsEachBlockedAttemptOnTheSameTile);
+  RUN(facing_invalidDirectionIsIgnored);
+  RUN(facing_eachModelHasItsOwnFacing);
 
   RUN(randomWalk_alwaysObeysTheRules);
 
