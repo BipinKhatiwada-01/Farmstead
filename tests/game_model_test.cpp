@@ -610,6 +610,168 @@ static void facing_eachModelHasItsOwnFacing() {
 }
 
 // ---------------------------------------------------------------------------
+// tileInFront
+// The tile the player faces = playerPosition() moved one step in
+// facingDirection(). It only IDENTIFIES a target: no walkability check, no
+// clamping (it may be off the map), and it never changes position or facing.
+// ---------------------------------------------------------------------------
+
+static void checkFrontImpl(const GameModel &m, int column, int row, int line) {
+  const TilePosition f = m.tileInFront();
+  if (f.column != column || f.row != row) {
+    std::cerr << "  FAIL line " << line << ": expected tile in front ("
+              << column << "," << row << ") but was (" << f.column << ","
+              << f.row << ")\n";
+    ++g_failures;
+  }
+}
+#define CHECK_FRONT(model, column, row)                                        \
+  checkFrontImpl((model), (column), (row), __LINE__)
+
+// Each direction. Every test checks facing first, so a wrong result is not
+// confused with the player simply not facing where the test thinks it is.
+
+static void tileInFront_atStartIsTheTileBelow() {
+  GameModel m; // (1,1), facing DOWN
+  CHECK_FRONT(m, 1, 2);
+}
+
+static void tileInFront_facingUpIsRowMinusOne() {
+  GameModel m;
+  MOVE(m, Direction::DOWN, 4); // (1,5)
+  MOVE(m, Direction::UP, 1);   // (1,4), facing UP
+  CHECK_FACING(m, Direction::UP);
+  CHECK_FRONT(m, 1, 3);
+}
+
+static void tileInFront_facingDownIsRowPlusOne() {
+  GameModel m;
+  MOVE(m, Direction::RIGHT, 1); // (2,1): turn away from the default first
+  MOVE(m, Direction::DOWN, 1);  // (2,2), facing DOWN
+  CHECK_FACING(m, Direction::DOWN);
+  CHECK_FRONT(m, 2, 3);
+}
+
+static void tileInFront_facingLeftIsColumnMinusOne() {
+  GameModel m;
+  MOVE(m, Direction::RIGHT, 1); // (2,1)
+  MOVE(m, Direction::LEFT, 1);  // (1,1), facing LEFT
+  CHECK_FACING(m, Direction::LEFT);
+  CHECK_FRONT(m, 0, 1);
+}
+
+static void tileInFront_facingRightIsColumnPlusOne() {
+  GameModel m;
+  MOVE(m, Direction::RIGHT, 1); // (2,1), facing RIGHT
+  CHECK_FACING(m, Direction::RIGHT);
+  CHECK_FRONT(m, 3, 1);
+}
+
+// Off the map: returned as-is, never clamped.
+
+static void tileInFront_pastTopEdgeIsReturnedUnclamped() {
+  GameModel m;
+  MOVE(m, Direction::UP, 1); // (1,0), facing UP
+  CHECK_FRONT(m, 1, -1);
+  const TilePosition front = m.tileInFront();
+  CHECK(!m.isInBounds(front.column, front.row));
+}
+
+static void tileInFront_pastLeftEdgeIsReturnedUnclamped() {
+  GameModel m;
+  MOVE(m, Direction::LEFT, 1); // (0,1), facing LEFT
+  CHECK_FRONT(m, -1, 1);
+  const TilePosition front = m.tileInFront();
+  CHECK(!m.isInBounds(front.column, front.row));
+}
+
+static void tileInFront_pastBottomEdgeIsReturnedUnclamped() {
+  GameModel m;
+  MOVE(m, Direction::DOWN, 13); // (1,14), facing DOWN
+  CHECK_FRONT(m, 1, GameModel::kMapHeight);
+  const TilePosition front = m.tileInFront();
+  CHECK(!m.isInBounds(front.column, front.row));
+}
+
+static void tileInFront_pastRightEdgeIsReturnedUnclamped() {
+  GameModel m;
+  MOVE(m, Direction::UP, 1);     // (1,0)
+  MOVE(m, Direction::RIGHT, 18); // (19,0), facing RIGHT
+  CHECK_FRONT(m, GameModel::kMapWidth, 0);
+  const TilePosition front = m.tileInFront();
+  CHECK(!m.isInBounds(front.column, front.row));
+}
+
+// No walkability check: a wall in front is still "the tile in front".
+static void tileInFront_returnsAnObstacleTileWithoutJudgingIt() {
+  GameModel m;
+  MOVE(m, Direction::RIGHT, 3); // (4,1), facing RIGHT; (5,1) is a wall
+  CHECK_FRONT(m, 5, 1);
+  CHECK_TILE(m, 5, 1, TileType::OBSTACLE);
+}
+
+// Read-only: no side effects, and callable on a const model.
+static void tileInFront_doesNotChangePositionOrFacing() {
+  GameModel m;
+  MOVE(m, Direction::RIGHT, 1); // (2,1), facing RIGHT
+  const GameModel &readOnly = m;
+  for (int i = 0; i < 3; ++i) {
+    CHECK_FRONT(readOnly, 3, 1);
+    CHECK_POS(readOnly, 2, 1);
+    CHECK_FACING(readOnly, Direction::RIGHT);
+  }
+}
+
+// After movement.
+
+static void tileInFront_followsThePlayerAfterSuccessfulMoves() {
+  GameModel m;
+  CHECK_FRONT(m, 1, 2);
+  CHECK(m.tryMove(Direction::RIGHT)); // (2,1)
+  CHECK_FRONT(m, 3, 1);
+  CHECK(m.tryMove(Direction::RIGHT)); // (3,1)
+  CHECK_FRONT(m, 4, 1);
+  CHECK(m.tryMove(Direction::DOWN)); // (3,2), now facing DOWN
+  CHECK_POS(m, 3, 2);
+  CHECK_FRONT(m, 3, 3);
+}
+
+static void tileInFront_afterBlockedMoveStaysOnTheWall() {
+  GameModel m;
+  MOVE(m, Direction::RIGHT, 3);        // (4,1), facing RIGHT
+  CHECK(!m.tryMove(Direction::RIGHT)); // blocked by the wall at (5,1)
+  CHECK_POS(m, 4, 1);
+  CHECK_FRONT(m, 5, 1);
+}
+
+// The blocked move turns the player, so the front tile must switch sides even
+// though the position did not change.
+static void tileInFront_afterBlockedMoveUsesTheNewFacing() {
+  GameModel m;
+  MOVE(m, Direction::DOWN, 8);   // (1,9)
+  MOVE(m, Direction::RIGHT, 12); // (13,9)
+  MOVE(m, Direction::UP, 1);     // (13,8), facing UP
+  CHECK_FRONT(m, 13, 7);
+
+  CHECK(!m.tryMove(Direction::RIGHT)); // wall at (14,8)
+  CHECK_POS(m, 13, 8);
+  CHECK_FACING(m, Direction::RIGHT);
+  CHECK_FRONT(m, 14, 8);
+}
+
+static void tileInFront_afterBlockedMoveAtMapEdgeIsOffTheMap() {
+  GameModel m;
+  MOVE(m, Direction::UP, 1);   // (1,0)
+  MOVE(m, Direction::LEFT, 1); // (0,0), facing LEFT
+  CHECK_FRONT(m, -1, 0);
+
+  CHECK(!m.tryMove(Direction::UP)); // off the top of the map
+  CHECK_POS(m, 0, 0);
+  CHECK_FACING(m, Direction::UP);
+  CHECK_FRONT(m, 0, -1);
+}
+
+// ---------------------------------------------------------------------------
 // Runner: prints one line per test so you can see exactly which one failed.
 // ---------------------------------------------------------------------------
 
@@ -674,6 +836,22 @@ int main() {
   RUN(facing_followsEachBlockedAttemptOnTheSameTile);
   RUN(facing_invalidDirectionIsIgnored);
   RUN(facing_eachModelHasItsOwnFacing);
+
+  RUN(tileInFront_atStartIsTheTileBelow);
+  RUN(tileInFront_facingUpIsRowMinusOne);
+  RUN(tileInFront_facingDownIsRowPlusOne);
+  RUN(tileInFront_facingLeftIsColumnMinusOne);
+  RUN(tileInFront_facingRightIsColumnPlusOne);
+  RUN(tileInFront_pastTopEdgeIsReturnedUnclamped);
+  RUN(tileInFront_pastLeftEdgeIsReturnedUnclamped);
+  RUN(tileInFront_pastBottomEdgeIsReturnedUnclamped);
+  RUN(tileInFront_pastRightEdgeIsReturnedUnclamped);
+  RUN(tileInFront_returnsAnObstacleTileWithoutJudgingIt);
+  RUN(tileInFront_doesNotChangePositionOrFacing);
+  RUN(tileInFront_followsThePlayerAfterSuccessfulMoves);
+  RUN(tileInFront_afterBlockedMoveStaysOnTheWall);
+  RUN(tileInFront_afterBlockedMoveUsesTheNewFacing);
+  RUN(tileInFront_afterBlockedMoveAtMapEdgeIsOffTheMap);
 
   RUN(randomWalk_alwaysObeysTheRules);
 
