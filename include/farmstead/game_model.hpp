@@ -92,6 +92,8 @@ public:
   /// 0 <= row < mapHeight(). Safe to call with any int.
   bool isInBounds(int column, int row) const;
 
+  Direction facingDirection() const;
+
 private:
   // Flat index of a tile, row-major: row * kMapWidth + column.
   // Precondition: (column, row) is in bounds; callers check isInBounds first.
@@ -101,6 +103,9 @@ private:
   // position directly, or it could bypass the movement rules.
   std::array<TileType, kMapWidth * kMapHeight> tiles{};
   TilePosition player{};
+
+  // what direction player is facing currently
+  Direction facing;
 };
 
 } // namespace farmstead

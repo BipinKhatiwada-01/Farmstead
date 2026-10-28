@@ -31,6 +31,9 @@ static_assert(layoutIsValid(), "every layout row must be kMapWidth characters");
 
 // constructor
 GameModel::GameModel() : player(kStartPosition) {
+  // initialize facing direction to down
+  facing = Direction::DOWN;
+
   for (int row = 0; row < kMapHeight; row++) {
     for (int col = 0; col < kMapWidth; col++) {
       const char symbol = kLayout[row][col];
@@ -50,6 +53,8 @@ std::size_t GameModel::indexOf(int column, int row) const {
 int GameModel::mapWidth() const { return kMapWidth; }
 
 int GameModel::mapHeight() const { return kMapHeight; }
+
+Direction GameModel::facingDirection() const { return facing; }
 
 bool GameModel::isInBounds(int column, int row) const {
   bool isInBound =
@@ -89,6 +94,9 @@ bool GameModel::tryMove(Direction direction) {
   if (deltaColumn == 0 && deltaRow == 0) {
     return false; // not a valid Direction
   }
+
+  // assign facing direction
+  facing = direction;
 
   const int targetColumn = player.column + deltaColumn;
   const int targetRow = player.row + deltaRow;
