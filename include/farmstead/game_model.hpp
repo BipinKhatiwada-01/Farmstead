@@ -80,6 +80,8 @@ public:
 
   TilePosition playerPosition() const;
 
+  TilePosition tileInFront() const;
+
   /// Tries to move the player exactly one tile in `direction`.
   ///
   /// Returns true if the player moved. Returns false if the target tile is off

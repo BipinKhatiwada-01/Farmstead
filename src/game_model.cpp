@@ -30,9 +30,7 @@ static_assert(layoutIsValid(), "every layout row must be kMapWidth characters");
 } // namespace
 
 // constructor
-GameModel::GameModel() : player(kStartPosition) {
-  // initialize facing direction to down
-  facing = Direction::DOWN;
+GameModel::GameModel() : player(kStartPosition), facing(Direction::DOWN) {
 
   for (int row = 0; row < kMapHeight; row++) {
     for (int col = 0; col < kMapWidth; col++) {
@@ -70,6 +68,26 @@ TileType GameModel::tileAt(int column, int row) const {
 }
 
 TilePosition GameModel::playerPosition() const { return player; }
+
+TilePosition GameModel::tileInFront() const {
+  TilePosition facingTile = player;
+  switch (facing) {
+  case Direction::UP:
+    facingTile.row--;
+    break;
+  case Direction::DOWN:
+    facingTile.row++;
+    break;
+  case Direction::LEFT:
+    facingTile.column--;
+    break;
+  case Direction::RIGHT:
+    facingTile.column++;
+    break;
+  }
+
+  return facingTile;
+}
 
 // Bounds are checked before reading the tile, and the position only changes
 // on the last line, so a rejected move leaves the player where it was.
