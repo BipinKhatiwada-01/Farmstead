@@ -86,6 +86,10 @@ bool GameModel::tryMove(Direction direction) {
     break;
   }
 
+  if (deltaColumn == 0 && deltaRow == 0) {
+    return false; // not a valid Direction
+  }
+
   const int targetColumn = player.column + deltaColumn;
   const int targetRow = player.row + deltaRow;
 

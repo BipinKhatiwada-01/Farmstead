@@ -26,9 +26,9 @@ target_link_libraries(
   farmstead-core
 )
 
-target_compile_features(farmstead PRIVATE cxx_std_20)
+target_compile_features(farmstead-core PUBLIC cxx_std_20)
 
-set_target_properties(farmstead PROPERTIES
+set_target_properties(farmstead-core PROPERTIES
     CXX_EXTENSIONS OFF
 )
 
