@@ -109,6 +109,20 @@ int main(){
             }
         }
 
+        farmstead::TilePosition target = model.tileInFront();
+
+        if (model.isInBounds(target.column, target.row)) {
+            SDL_FRect targetRect{
+                target.column * tileSize,
+                target.row * tileSize,
+                tileSize,
+                tileSize
+            };
+
+            SDL_SetRenderDrawColor(renderPointer, 240, 240, 240, 255);
+            SDL_RenderRect(renderPointer, &targetRect);
+        }
+
         farmstead::TilePosition playerPos = model.playerPosition();
 
         float playerSize = tileSize * 0.6f;
