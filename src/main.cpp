@@ -2,6 +2,7 @@
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_init.h>
+#include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL_oldnames.h>
 #include <SDL3/SDL_rect.h>
 #include <SDL3/SDL_render.h>
@@ -59,6 +60,25 @@ int main(){
         while(SDL_PollEvent(&event)){
             if(event.type == SDL_EVENT_QUIT){
                 running = false;
+            }
+            else if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
+                switch (event.key.key) {
+                    case SDLK_RIGHT:
+                        model.tryMove(farmstead::Direction::RIGHT);
+                            break;
+                    case SDLK_LEFT:
+                        model.tryMove(farmstead::Direction::LEFT);
+                            break;
+                    case SDLK_UP:
+                        model.tryMove(farmstead::Direction::UP);
+                            break;
+                    case SDLK_DOWN:
+                        model.tryMove(farmstead::Direction::DOWN);
+                            break;   
+                    default:
+                        break;                
+                }
+            
             }
         } 
 
