@@ -2,10 +2,13 @@
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_init.h>
+#include <SDL3/SDL_oldnames.h>
+#include <SDL3/SDL_rect.h>
 #include <SDL3/SDL_render.h>
 #include <SDL3/SDL_video.h>
 
 #include <iostream>
+#include "../include/farmstead/game_model.hpp"
 
 int main(){
 
@@ -41,6 +44,9 @@ int main(){
         return 1;
     }
 
+    constexpr float tileSize = 40.0f;
+
+    farmstead::GameModel model;
     bool running = true;
 
 
@@ -59,6 +65,43 @@ int main(){
         // Clear the previous frame and present the current frame using the selected background color.
         SDL_SetRenderDrawColor(renderPointer, 50, 100, 160, 255);
         SDL_RenderClear(renderPointer);
+
+        for (int row =0; row < model.mapHeight() ; row++) {
+            for (int col = 0; col < model.mapWidth(); col++) {
+
+               farmstead::TileType type = model.tileAt(col, row);
+
+                if (type == farmstead::TileType::GROUND) {
+                    SDL_SetRenderDrawColor(renderPointer, 30, 150, 80, 255);
+                }
+                else {
+                    SDL_SetRenderDrawColor(renderPointer, 10, 30, 20, 255);                
+                }
+
+                SDL_FRect tileRect{col * tileSize, row * tileSize, tileSize, tileSize};
+                SDL_RenderFillRect(renderPointer, &tileRect);
+
+            }
+        }
+
+        farmstead::TilePosition playerPos = model.playerPosition();
+
+        float playerSize = tileSize * 0.6f;
+        float padding = (tileSize - playerSize ) / 2.0f;
+
+        SDL_FRect playerRect{
+            playerPos.column * tileSize + padding,
+            playerPos.row * tileSize + padding,
+            playerSize,
+            playerSize
+        };
+
+        // Choose a colour for the player.
+        SDL_SetRenderDrawColor(renderPointer, 220, 60, 60, 255);
+
+        // Draw the player over the map.
+        SDL_RenderFillRect(renderPointer, &playerRect);
+
         SDL_RenderPresent(renderPointer);
 
     }

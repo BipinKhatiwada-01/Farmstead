@@ -1,4 +1,4 @@
-#include "farmstead/game_model.hpp"
+#include "../include/farmstead/game_model.hpp"
 #include <string_view>
 
 namespace farmstead {
