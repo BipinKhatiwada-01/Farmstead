@@ -4,7 +4,8 @@
 namespace farmstead {
 
 namespace {
-// '#' = obstacle, '.' = ground
+// '#' = obstacle, '.' = ground. One string per row, top row first:
+// kLayout[row][column].
 constexpr std::array<std::string_view, GameModel::kMapHeight> kLayout = {
     "....................", ".....###............", ".....#..............",
     ".....#.......##.....", "............##......", "....................",
@@ -15,16 +16,8 @@ constexpr std::array<std::string_view, GameModel::kMapHeight> kLayout = {
 
 constexpr TilePosition kStartPosition{1, 1};
 
-// ============================================================================
-// Map Layout Integrity Validator (Compile-Time)
-// ============================================================================
-// Enforces that every horizontal row in the `kLayout` matrix strictly matches
-// `GameModel::kMapWidth`. Because this runs via static_assert, it prevents
-// out-of-bounds memory bugs/crashes at compile-time with zero runtime overhead.
-//
-// NOTE: If you add or modify a map layer in kLayout, make sure the string
-// length exactly matches kMapWidth, otherwise the build will fail.
-// ============================================================================
+// Every row must be exactly kMapWidth characters; checked at compile time
+// so a typo in the layout fails the build instead of misbehaving at runtime.
 constexpr bool layoutIsValid() {
   for (std::string_view row : kLayout) {
     if (static_cast<int>(row.size()) != GameModel::kMapWidth)
@@ -73,6 +66,8 @@ TileType GameModel::tileAt(int column, int row) const {
 
 TilePosition GameModel::playerPosition() const { return player; }
 
+// Bounds are checked before reading the tile, and the position only changes
+// on the last line, so a rejected move leaves the player where it was.
 bool GameModel::tryMove(Direction direction) {
   int deltaColumn = 0;
   int deltaRow = 0;
