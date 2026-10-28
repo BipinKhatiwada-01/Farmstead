@@ -68,7 +68,7 @@ TileType GameModel::tileAt(int column, int row) const {
   if (!isInBounds(column, row)) {
     return TileType::OBSTACLE;
   }
-  return TileType::GROUND;
+  return tiles[indexOf(column, row)];
 }
 
 TilePosition GameModel::playerPosition() const { return player; }
@@ -78,16 +78,16 @@ bool GameModel::tryMove(Direction direction) {
   int deltaRow = 0;
   switch (direction) {
   case farmstead::Direction::UP:
-    deltaColumn = -1;
-    break;
-  case farmstead::Direction::DOWN:
-    deltaColumn = 1;
-    break;
-  case farmstead::Direction::LEFT:
     deltaRow = -1;
     break;
-  case farmstead::Direction::RIGHT:
+  case farmstead::Direction::DOWN:
     deltaRow = 1;
+    break;
+  case farmstead::Direction::LEFT:
+    deltaColumn = -1;
+    break;
+  case farmstead::Direction::RIGHT:
+    deltaColumn = 1;
     break;
   }
 
