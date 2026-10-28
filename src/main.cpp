@@ -45,6 +45,11 @@ int main(){
         return 1;
     }
 
+    if (!SDL_SetRenderVSync(renderPointer, 1)) {
+        std::cerr << "VSync unable to be enabled : "
+            << SDL_GetError() << '\n';
+    }
+
     constexpr float tileSize = 40.0f;
 
     farmstead::GameModel model;
