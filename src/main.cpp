@@ -79,11 +79,29 @@ int main(){
                             break;
                     case SDLK_DOWN:
                         model.tryMove(farmstead::Direction::DOWN);
-                            break;   
+                            break;  
+                    case SDLK_E:
+                    {
+                        const farmstead::TilePosition target = model.tileInFront();
+                        if (!model.isInBounds(target.column, target.row)) {
+                            std::cout << "Nothing there - outside the map!\n";
+                        }
+
+                        const farmstead::TileType type = model.tileAt(target.column, target.row);
+                        std::cout << "Tile (" << target.column << ", "
+                                << target.row << "): ";
+
+                        if (type == farmstead::TileType::GROUND) {
+                            std::cout << "GROUND\n";
+                        }
+                        else {
+                            std::cout << "OBSTACLE\n";
+                        }                        
+                    }
+                        break;
                     default:
                         break;                
                 }
-            
             }
         } 
 
