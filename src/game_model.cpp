@@ -160,13 +160,12 @@ bool GameModel::tryPlant(int column, int row) {
   if (!tilled[index]) {
     return false;
   }
-  if (planted[index]) {
+  if (crops[index].has_value()) {
     return false;
   }
-  planted[index] = true;
 
   // create crop object to indicate its planted
-  crops[index] = Crop{};
+  crops[index].emplace();
   return true;
 }
 
@@ -174,7 +173,7 @@ bool GameModel::isPlanted(int column, int row) const {
   if (!isInBounds(column, row)) {
     return false;
   }
-  return planted[indexOf(column, row)];
+  return crops[indexOf(column, row)].has_value();
 }
 
 bool GameModel::tryWater(int column, int row) {

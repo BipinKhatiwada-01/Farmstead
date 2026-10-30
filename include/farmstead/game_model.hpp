@@ -55,12 +55,9 @@ struct TilePosition {
   }
 };
 
-/// Owns the fixed map and the player's tile position, and decides whether a
-/// move is legal. Create one model and keep it for the whole game.
-///
-/// The only function that changes state is tryMove(). Everything else is a
-/// const query, so a renderer holding a `const GameModel&` cannot alter the
-/// game.
+//
+// GameModel manages the game world, including player movement,
+// terrain interaction, planting, watering, and crop growth.
 class GameModel {
 public:
   static constexpr int kMapWidth = 20;
@@ -160,12 +157,8 @@ private:
   // as `tiles`. Only GROUND tiles are ever set to true.
   std::array<bool, kMapWidth * kMapHeight> tilled{};
 
-  // Crop state, one entry per tile, same indexing again. A crop can only exist
-  // on tilled soil, so planted implies tilled implies GROUND.
-  std::array<bool, kMapWidth * kMapHeight> planted{};
-
-  // stores crops no crops -> nullptr
-  // crops -> Crop object
+  // Stores crops by tile index. An empty optional represents
+  // a tile without a planted crop.
   std::array<std::optional<Crop>, kMapWidth * kMapHeight> crops{};
 };
 
