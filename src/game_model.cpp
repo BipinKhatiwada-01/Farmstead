@@ -130,4 +130,25 @@ bool GameModel::tryMove(Direction direction) {
   return true;
 }
 
+bool GameModel::tryTill(int column, int row) {
+  if (!isInBounds(column, row)) {
+    return false;
+  }
+  if (tiles[indexOf(column, row)] != TileType::GROUND) {
+    return false;
+  }
+  if (tilled[indexOf(column, row)]) {
+    return false;
+  }
+  tilled[indexOf(column, row)] = true;
+  return true;
+}
+
+bool GameModel::isTilled(int column, int row) const {
+  if (!isInBounds(column, row)) {
+    return false;
+  }
+  return tilled[indexOf(column, row)];
+}
+
 } // namespace farmstead
