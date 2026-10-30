@@ -1156,6 +1156,446 @@ static void planting_eachModelHasItsOwnCrops() {
 }
 
 // ---------------------------------------------------------------------------
+// Watering and growth (GameModel level; Crop is tested separately)
+// Rules under test:
+//   - only an existing crop that is not yet watered today can be watered
+//   - advanceDay() gives one growth day to each crop watered that day, then
+//     everything is dry again
+//   - progress is cumulative: a missed day pauses growth, never resets it
+//   - SPROUT after 3 watered days, MATURE after 3 MORE (6 in total)
+// Tiles are off the diagonal ((3,2), (4,2), ...) so a swapped column/row index
+// cannot hide.
+// ---------------------------------------------------------------------------
+
+// Watered days needed, counted from planting. If the design changes, change
+// these two numbers; every growth test below is written in terms of them.
+static const int kDaysToSprout = 3;
+static const int kDaysToMature = 6; // 3 more days after sprouting
+
+static const char *stageName(CropStage s) {
+  switch (s) {
+  case CropStage::NONE:
+    return "NONE";
+  case CropStage::SEED:
+    return "SEED";
+  case CropStage::SPROUT:
+    return "SPROUT";
+  case CropStage::MATURE:
+    return "MATURE";
+  }
+  return "?";
+}
+
+static void checkStageImpl(const GameModel &m, int column, int row,
+                           CropStage expected, int line) {
+  const CropStage actual = m.cropStageAt(column, row);
+  if (actual != expected) {
+    std::cerr << "  FAIL line " << line << ": crop stage at (" << column << ","
+              << row << ") expected " << stageName(expected) << " but was "
+              << stageName(actual) << "\n";
+    ++g_failures;
+  }
+}
+#define CHECK_STAGE(model, column, row, expected)                              \
+  checkStageImpl((model), (column), (row), (expected), __LINE__)
+
+static int countWatered(const GameModel &m) {
+  int count = 0;
+  for (int row = 0; row < m.mapHeight(); ++row) {
+    for (int column = 0; column < m.mapWidth(); ++column) {
+      if (m.isWateredToday(column, row)) {
+        ++count;
+      }
+    }
+  }
+  return count;
+}
+
+static void advanceDays(GameModel &m, int days) {
+  for (int i = 0; i < days; ++i) {
+    m.advanceDay();
+  }
+}
+
+// One watered day for a single crop: water it, then end the day.
+static void waterAndAdvance(GameModel &m, int column, int row) {
+  CHECK(m.tryWater(column, row));
+  m.advanceDay();
+}
+
+// `days` watered days in a row for a single crop.
+static void waterDays(GameModel &m, int column, int row, int days) {
+  for (int i = 0; i < days; ++i) {
+    waterAndAdvance(m, column, row);
+  }
+}
+
+// ---- Watering eligibility --------------------------------------------------
+
+static void watering_noCropMeansStageNoneAndNotWatered() {
+  GameModel m;
+  CHECK_STAGE(m, 3, 2, CropStage::NONE);
+  CHECK(!m.isWateredToday(3, 2));
+  for (int row = 0; row < m.mapHeight(); ++row) {
+    for (int column = 0; column < m.mapWidth(); ++column) {
+      CHECK_STAGE(m, column, row, CropStage::NONE);
+    }
+  }
+  CHECK(countWatered(m) == 0);
+}
+
+static void watering_plantedCropStartsAsADrySeed() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+  CHECK(!m.isWateredToday(3, 2));
+}
+
+static void watering_plantedCropCanBeWatered() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  CHECK(m.tryWater(3, 2));
+  CHECK(m.isWateredToday(3, 2));
+  CHECK_STAGE(m, 3, 2, CropStage::SEED); // growth only happens in advanceDay()
+}
+
+static void watering_soilWithoutACropRejects() {
+  GameModel m;
+  CHECK(m.tryTill(3, 2)); // tilled but empty
+  CHECK(!m.tryWater(3, 2));
+  CHECK(!m.isWateredToday(3, 2));
+  CHECK_STAGE(m, 3, 2, CropStage::NONE);
+  CHECK(!m.tryWater(6, 2)); // ordinary untilled ground
+  CHECK(!m.isWateredToday(6, 2));
+}
+
+static void watering_everyObstacleRejects() {
+  GameModel m;
+  int obstaclesTried = 0;
+  for (int row = 0; row < m.mapHeight(); ++row) {
+    for (int column = 0; column < m.mapWidth(); ++column) {
+      if (m.tileAt(column, row) == TileType::OBSTACLE) {
+        CHECK(!m.tryWater(column, row));
+        CHECK(!m.isWateredToday(column, row));
+        CHECK_STAGE(m, column, row, CropStage::NONE);
+        ++obstaclesTried;
+      }
+    }
+  }
+  CHECK(obstaclesTried == 23);
+}
+
+static void watering_outOfBoundsRejects() {
+  GameModel m;
+  CHECK(!m.tryWater(-1, 0));
+  CHECK(!m.tryWater(0, -1));
+  CHECK(!m.tryWater(-1, -1));
+  CHECK(!m.tryWater(GameModel::kMapWidth, 0));
+  CHECK(!m.tryWater(0, GameModel::kMapHeight));
+  CHECK(!m.tryWater(GameModel::kMapWidth, GameModel::kMapHeight));
+  CHECK(countWatered(m) == 0);
+}
+
+static void watering_queriesOffTheMapAreFalseOrNone() {
+  GameModel m;
+  CHECK(!m.isWateredToday(-1, 0));
+  CHECK(!m.isWateredToday(0, GameModel::kMapHeight));
+  CHECK(!m.isWateredToday(GameModel::kMapWidth, GameModel::kMapHeight));
+  CHECK_STAGE(m, -1, 0, CropStage::NONE);
+  CHECK_STAGE(m, 0, GameModel::kMapHeight, CropStage::NONE);
+  CHECK_STAGE(m, GameModel::kMapWidth, GameModel::kMapHeight, CropStage::NONE);
+}
+
+// Flat-array trap: (20,0) is index 20 = tile (0,1); (-1,1) is index 19 = tile
+// (19,0). Both have real crops here, so a missing bounds check would water
+// them instead of rejecting the off-map attempt.
+static void watering_outOfBoundsNeverTouchesAnotherCrop() {
+  GameModel m;
+  tillAndPlant(m, 0, 1);
+  tillAndPlant(m, 19, 0);
+  CHECK(!m.tryWater(GameModel::kMapWidth, 0));
+  CHECK(!m.isWateredToday(0, 1));
+  CHECK(!m.tryWater(-1, 1));
+  CHECK(!m.isWateredToday(19, 0));
+  CHECK(countWatered(m) == 0);
+}
+
+// Same aliasing on the read side: the real crops are watered, the off-map
+// neighbours must still report "not watered" and "no crop".
+static void watering_queriesOffTheMapIgnoreCropsAtAliasedTiles() {
+  GameModel m;
+  tillAndPlant(m, 0, 1);
+  tillAndPlant(m, 19, 0);
+  CHECK(m.tryWater(0, 1));
+  CHECK(m.tryWater(19, 0));
+  CHECK(!m.isWateredToday(GameModel::kMapWidth, 0)); // would alias (0,1)
+  CHECK(!m.isWateredToday(-1, 1));                   // would alias (19,0)
+  CHECK_STAGE(m, GameModel::kMapWidth, 0, CropStage::NONE);
+  CHECK_STAGE(m, -1, 1, CropStage::NONE);
+}
+
+// ---- Duplicate watering ----------------------------------------------------
+
+static void watering_sameCropCannotBeWateredTwiceInOneDay() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  CHECK(m.tryWater(3, 2));
+  CHECK(!m.tryWater(3, 2));
+  CHECK(!m.tryWater(3, 2));
+  CHECK(m.isWateredToday(3, 2));
+}
+
+// Failed attempts must not add growth either: the crop should still need
+// exactly kDaysToSprout watered DAYS, however many extra attempts were made.
+static void watering_failedAttemptsDoNotChangeState() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  CHECK(m.tryWater(3, 2));
+  CHECK(!m.tryWater(3, 2));                    // already watered
+  CHECK(!m.tryWater(3, 2));                    // and again
+  CHECK(!m.tryWater(6, 2));                    // untilled ground
+  CHECK(!m.tryWater(5, 1));                    // obstacle
+  CHECK(!m.tryWater(-1, 0));                   // off the map
+  CHECK(!m.tryWater(GameModel::kMapWidth, 0)); // off the map
+  CHECK(countWatered(m) == 1);
+  m.advanceDay();                        // watered day 1
+  waterDays(m, 3, 2, kDaysToSprout - 2); // watered days 2 .. (sprout - 1)
+  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+  waterAndAdvance(m, 3, 2); // watered day 3
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+}
+
+static void watering_onlyTheTargetedCropGetsWater() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  tillAndPlant(m, 4, 2);
+  CHECK(m.tryWater(3, 2));
+  CHECK(m.isWateredToday(3, 2));
+  CHECK(!m.isWateredToday(4, 2));
+  CHECK(!m.isWateredToday(2, 3)); // what a swapped (column,row) index would hit
+  CHECK(countWatered(m) == 1);
+  m.advanceDay();
+  waterDays(m, 3, 2, kDaysToSprout - 1); // only (3,2) is ever watered
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  CHECK_STAGE(m, 4, 2, CropStage::SEED);
+}
+
+// ---- Daily reset -----------------------------------------------------------
+
+static void advanceDay_clearsWateringSoCropsCanBeWateredAgain() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  CHECK(m.tryWater(3, 2));
+  CHECK(m.isWateredToday(3, 2));
+  m.advanceDay();
+  CHECK(!m.isWateredToday(3, 2));
+  CHECK(m.tryWater(3, 2));  // allowed again on the new day
+  CHECK(!m.tryWater(3, 2)); // but still only once per day
+}
+
+static void advanceDay_onAFarmWithNoCropsChangesNothing() {
+  GameModel m;
+  CHECK(m.tryTill(3, 2)); // tilled, no crop
+  advanceDays(m, 3);
+  CHECK(countPlanted(m) == 0);
+  CHECK(countWatered(m) == 0);
+  CHECK(countTilled(m) == 1);
+  CHECK_STAGE(m, 3, 2, CropStage::NONE);
+  CHECK_POS(m, 1, 1);
+  CHECK_FACING(m, Direction::DOWN);
+}
+
+// ---- Growth stages: SEED -> (3 watered days) SPROUT -> (3 more) MATURE -----
+
+static void growth_wateringAloneDoesNotGrowAndOneDayIsNotEnough() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  CHECK(m.tryWater(3, 2));
+  CHECK_STAGE(m, 3, 2, CropStage::SEED); // watering alone does not grow it
+  m.advanceDay();
+  CHECK_STAGE(m, 3, 2, CropStage::SEED); // one watered day is not enough
+}
+
+static void growth_thirdWateredDayMakesASprout() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  waterDays(m, 3, 2, kDaysToSprout - 1);
+  CHECK_STAGE(m, 3, 2, CropStage::SEED); // two watered days: still a seed
+  waterAndAdvance(m, 3, 2);
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+}
+
+static void growth_sproutStaysASproutUntilTheSixthWateredDay() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  waterDays(m, 3, 2, kDaysToSprout);
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  waterDays(m, 3, 2, kDaysToMature - kDaysToSprout - 1);
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT); // five watered days in total
+}
+
+static void growth_sixthWateredDayMakesItMature() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  waterDays(m, 3, 2, kDaysToMature - 1);
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  waterAndAdvance(m, 3, 2);
+  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+}
+
+// Return value of tryWater is deliberately not asserted here: the rules do not
+// say whether a mature crop may still be watered, only that it stays MATURE.
+static void growth_matureCropStaysMature() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  waterDays(m, 3, 2, kDaysToMature);
+  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+  for (int day = 0; day < 6; ++day) {
+    if (day % 2 == 0) {
+      m.tryWater(3, 2);
+    }
+    m.advanceDay();
+    CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+  }
+}
+
+static void growth_cropsGrowIndependently() {
+  GameModel m;
+  tillAndPlant(m, 3, 2); // A: watered every day
+  tillAndPlant(m, 4, 2); // B: watered for the first 3 days only
+  tillAndPlant(m, 3, 3); // C: never watered
+  for (int day = 0; day < kDaysToMature; ++day) {
+    CHECK(m.tryWater(3, 2));
+    if (day < kDaysToSprout) {
+      CHECK(m.tryWater(4, 2));
+    }
+    m.advanceDay();
+  }
+  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+  CHECK_STAGE(m, 4, 2, CropStage::SPROUT);
+  CHECK_STAGE(m, 3, 3, CropStage::SEED);
+}
+
+static void growth_cropPlantedLaterStartsAsASeed() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  waterDays(m, 3, 2, kDaysToMature);
+  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+
+  tillAndPlant(m, 4, 2); // a new crop, planted much later
+  CHECK_STAGE(m, 4, 2, CropStage::SEED);
+  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+  waterDays(m, 4, 2, kDaysToSprout);
+  CHECK_STAGE(m, 4, 2, CropStage::SPROUT);
+  CHECK_STAGE(m, 3, 2, CropStage::MATURE); // unwatered since, still mature
+}
+
+// ---- Missed days -----------------------------------------------------------
+
+static void growth_unwateredDaysDoNotGrowTheCrop() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  advanceDays(m, 5);
+  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+  waterDays(m, 3, 2, kDaysToSprout - 1); // dry days earlier count for nothing
+  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+  waterAndAdvance(m, 3, 2);
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+}
+
+static void growth_missedDayPausesButDoesNotResetProgress() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  waterDays(m, 3, 2, 2); // watered days 1-2
+  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+
+  m.advanceDay(); // missed day: progress must stay at 2
+  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+
+  waterAndAdvance(m, 3, 2);                // watered day 3
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT); // would still be SEED if reset
+
+  advanceDays(m, 2); // two missed days: a sprout does not revert to a seed
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+
+  waterDays(m, 3, 2, 2); // watered days 4-5
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+
+  m.advanceDay(); // another missed day
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+
+  waterAndAdvance(m, 3, 2); // watered day 6: ten days passed, six watered
+  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+}
+
+// ---- Existing behaviour stays unchanged -----------------------------------
+
+static void advanceDay_leavesTerrainTillingPlantingAndPlayerUnchanged() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  MOVE(m, Direction::RIGHT, 1); // (2,1), facing RIGHT
+  CHECK(m.tryWater(3, 2));
+  advanceDays(m, 2);
+  CHECK_POS(m, 2, 1);
+  CHECK_FACING(m, Direction::RIGHT);
+  CHECK_TILE(m, 3, 2, TileType::GROUND);
+  CHECK(m.isTilled(3, 2));
+  CHECK(m.isPlanted(3, 2));
+  CHECK(countTilled(m) == 1);
+  CHECK(countPlanted(m) == 1);
+}
+
+static void growth_playerCanStillWalkOverGrownCrops() {
+  GameModel m;
+  tillAndPlant(m, 2, 1);
+  tillAndPlant(m, 3, 1);
+  tillAndPlant(m, 4, 1);
+  for (int day = 0; day < kDaysToMature; ++day) {
+    CHECK(m.tryWater(2, 1));
+    CHECK(m.tryWater(3, 1));
+    CHECK(m.tryWater(4, 1));
+    m.advanceDay();
+  }
+  CHECK_STAGE(m, 2, 1, CropStage::MATURE);
+  CHECK_STAGE(m, 3, 1, CropStage::MATURE);
+  CHECK_STAGE(m, 4, 1, CropStage::MATURE);
+  MOVE(m, Direction::RIGHT, 3); // (4,1), over three mature crops
+  CHECK_POS(m, 4, 1);
+  MOVE(m, Direction::LEFT, 3);
+  CHECK_POS(m, 1, 1);
+  CHECK_STAGE(m, 3, 1, CropStage::MATURE); // walking does not harm them
+}
+
+// The way the SDL layer will use it: target = tileInFront().
+static void watering_worksWithTileInFront() {
+  GameModel m; // (1,1), facing DOWN
+  const TilePosition front = m.tileInFront();
+  CHECK(m.tryTill(front.column, front.row));
+  CHECK(m.tryPlant(front.column, front.row));
+  CHECK(m.tryWater(front.column, front.row));
+  m.advanceDay();
+  CHECK_STAGE(m, 1, 2, CropStage::SEED); // 1 of 3 days
+  waterDays(m, front.column, front.row, kDaysToSprout - 1);
+  CHECK_STAGE(m, 1, 2, CropStage::SPROUT);
+
+  GameModel dry; // front tile is plain ground: nothing to water
+  const TilePosition bare = dry.tileInFront();
+  CHECK(!dry.tryWater(bare.column, bare.row));
+}
+
+static void watering_eachModelHasItsOwnState() {
+  GameModel a;
+  GameModel b;
+  tillAndPlant(a, 3, 2);
+  tillAndPlant(b, 3, 2);
+  waterDays(a, 3, 2, kDaysToSprout);
+  CHECK_STAGE(a, 3, 2, CropStage::SPROUT);
+  CHECK_STAGE(b, 3, 2, CropStage::SEED);
+  CHECK(!b.isWateredToday(3, 2));
+  CHECK(b.tryWater(3, 2)); // b has not been watered yet today
+}
+
+// ---------------------------------------------------------------------------
 // Runner: prints one line per test so you can see exactly which one failed.
 // ---------------------------------------------------------------------------
 
@@ -1270,6 +1710,34 @@ int main() {
   RUN(planting_worksWithTileInFront);
   RUN(planting_tileInFrontThatCannotBePlantedIsRejected);
   RUN(planting_eachModelHasItsOwnCrops);
+
+  RUN(watering_noCropMeansStageNoneAndNotWatered);
+  RUN(watering_plantedCropStartsAsADrySeed);
+  RUN(watering_plantedCropCanBeWatered);
+  RUN(watering_soilWithoutACropRejects);
+  RUN(watering_everyObstacleRejects);
+  RUN(watering_outOfBoundsRejects);
+  RUN(watering_queriesOffTheMapAreFalseOrNone);
+  RUN(watering_outOfBoundsNeverTouchesAnotherCrop);
+  RUN(watering_queriesOffTheMapIgnoreCropsAtAliasedTiles);
+  RUN(watering_sameCropCannotBeWateredTwiceInOneDay);
+  RUN(watering_failedAttemptsDoNotChangeState);
+  RUN(watering_onlyTheTargetedCropGetsWater);
+  RUN(advanceDay_clearsWateringSoCropsCanBeWateredAgain);
+  RUN(advanceDay_onAFarmWithNoCropsChangesNothing);
+  RUN(growth_wateringAloneDoesNotGrowAndOneDayIsNotEnough);
+  RUN(growth_thirdWateredDayMakesASprout);
+  RUN(growth_sproutStaysASproutUntilTheSixthWateredDay);
+  RUN(growth_sixthWateredDayMakesItMature);
+  RUN(growth_matureCropStaysMature);
+  RUN(growth_cropsGrowIndependently);
+  RUN(growth_cropPlantedLaterStartsAsASeed);
+  RUN(growth_unwateredDaysDoNotGrowTheCrop);
+  RUN(growth_missedDayPausesButDoesNotResetProgress);
+  RUN(advanceDay_leavesTerrainTillingPlantingAndPlayerUnchanged);
+  RUN(growth_playerCanStillWalkOverGrownCrops);
+  RUN(watering_worksWithTileInFront);
+  RUN(watering_eachModelHasItsOwnState);
 
   RUN(randomWalk_alwaysObeysTheRules);
 
