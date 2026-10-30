@@ -164,6 +164,9 @@ bool GameModel::tryPlant(int column, int row) {
     return false;
   }
   planted[index] = true;
+
+  // create crop object to indicate its planted
+  crops[index] = Crop{};
   return true;
 }
 
@@ -172,6 +175,56 @@ bool GameModel::isPlanted(int column, int row) const {
     return false;
   }
   return planted[indexOf(column, row)];
+}
+
+bool GameModel::tryWater(int column, int row) {
+  if (!isInBounds(column, row)) {
+    return false;
+  }
+
+  int index = indexOf(column, row);
+
+  if (!crops[index].has_value()) {
+    return false;
+  }
+
+  return crops[index]->tryWater();
+}
+
+bool GameModel::isWateredToday(int column, int row) const {
+  if (!isInBounds(column, row)) {
+    return false;
+  }
+
+  int index = indexOf(column, row);
+
+  if (!crops[index].has_value()) {
+    return false;
+  }
+
+  return crops[index]->isWateredToday();
+}
+
+CropStage GameModel::cropStageAt(int column, int row) const {
+  if (!isInBounds(column, row)) {
+    return CropStage::NONE;
+  }
+
+  int index = indexOf(column, row);
+
+  if (!crops[index].has_value()) {
+    return CropStage::NONE;
+  }
+
+  return crops[index]->stage();
+}
+
+void GameModel::advanceDay() {
+  for (auto &crop : crops) {
+    if (crop.has_value()) {
+      crop->advanceDay();
+    }
+  }
 }
 
 } // namespace farmstead

@@ -19,8 +19,11 @@
 //             draw a rectangle for tileAt(column, row), then draw the player
 //             at playerPosition(). The model is only read while drawing.
 
+#include "Crop.hpp"
 #include <array>
 #include <cstddef>
+#include <optional>
+
 namespace farmstead {
 
 /// What kind of square a tile is.
@@ -123,6 +126,24 @@ public:
   /// untilled ground, obstacles, and anything off the map. Safe with any int.
   bool isPlanted(int column, int row) const;
 
+  // Attempts to water the crop at the given tile.
+  // Returns false if the position is invalid, no crop exists,
+  // or the crop has already been watered today.
+  bool tryWater(int column, int row);
+
+  // Returns whether the crop at the given tile has been watered today.
+  // Returns false for invalid positions or empty tiles.
+  bool isWateredToday(int column, int row) const;
+
+  // Returns the current growth stage of the crop at the given tile.
+  // Returns CropStage::NONE for invalid positions or empty tiles.
+  CropStage cropStageAt(int column, int row) const;
+
+  // Advances the game by one day.
+  // Crops watered during the previous day gain growth, and all
+  // crops have their daily watering status reset.
+  void advanceDay();
+
 private:
   // Flat index of a tile, row-major: row * kMapWidth + column.
   // Precondition: (column, row) is in bounds; callers check isInBounds first.
@@ -142,6 +163,10 @@ private:
   // Crop state, one entry per tile, same indexing again. A crop can only exist
   // on tilled soil, so planted implies tilled implies GROUND.
   std::array<bool, kMapWidth * kMapHeight> planted{};
+
+  // stores crops no crops -> nullptr
+  // crops -> Crop object
+  std::array<std::optional<Crop>, kMapWidth * kMapHeight> crops{};
 };
 
 }; // namespace farmstead
