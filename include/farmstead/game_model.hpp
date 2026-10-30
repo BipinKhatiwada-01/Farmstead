@@ -135,7 +135,6 @@ private:
 
   // what direction player is facing currently
   Direction facing;
-
   // Farming state, kept apart from terrain: same size and row-major indexing
   // as `tiles`. Only GROUND tiles are ever set to true.
   std::array<bool, kMapWidth * kMapHeight> tilled{};
@@ -145,4 +144,4 @@ private:
   std::array<bool, kMapWidth * kMapHeight> planted{};
 };
 
-} // namespace farmstead
+}; // namespace farmstead
