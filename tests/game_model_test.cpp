@@ -772,7 +772,6 @@ static void tileInFront_afterBlockedMoveAtMapEdgeIsOffTheMap() {
 }
 
 // ---------------------------------------------------------------------------
-<<<<<<< HEAD
 // Tilling
 // Terrain (tileAt) and farming state (isTilled) are separate layers. Only
 // GROUND can be tilled, and only once. Tilled ground is still GROUND and still
@@ -950,10 +949,6 @@ static void tilling_eachModelHasItsOwnFarmState() {
 }
 
 // ---------------------------------------------------------------------------
-<<<<<<< HEAD
-=======
->>>>>>> origin/dev/Bipin
-=======
 // Planting
 // A seed can only go on TILLED, EMPTY soil. Planting adds crop state on top of
 // the existing layers: it must not change terrain and must not un-till the
@@ -1161,7 +1156,6 @@ static void planting_eachModelHasItsOwnCrops() {
 }
 
 // ---------------------------------------------------------------------------
->>>>>>> origin/main
 // Runner: prints one line per test so you can see exactly which one failed.
 // ---------------------------------------------------------------------------
 
@@ -1243,7 +1237,6 @@ int main() {
   RUN(tileInFront_afterBlockedMoveUsesTheNewFacing);
   RUN(tileInFront_afterBlockedMoveAtMapEdgeIsOffTheMap);
 
-<<<<<<< HEAD
   RUN(tilling_everyTileStartsUntilled);
   RUN(tilling_validGroundSucceeds);
   RUN(tilling_sameTileCannotBeTilledTwice);
@@ -1260,10 +1253,6 @@ int main() {
   RUN(tilling_tileInFrontThatCannotBeTilledIsRejected);
   RUN(tilling_eachModelHasItsOwnFarmState);
 
-<<<<<<< HEAD
-=======
->>>>>>> origin/dev/Bipin
-=======
   RUN(planting_everyTileStartsEmpty);
   RUN(planting_tilledEmptySoilSucceeds);
   RUN(planting_untilledGroundFails);
@@ -1282,7 +1271,6 @@ int main() {
   RUN(planting_tileInFrontThatCannotBePlantedIsRejected);
   RUN(planting_eachModelHasItsOwnCrops);
 
->>>>>>> origin/main
   RUN(randomWalk_alwaysObeysTheRules);
 
   if (g_failures == 0) {

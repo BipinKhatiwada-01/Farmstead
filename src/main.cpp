@@ -83,6 +83,7 @@ int main(){
                     case SDLK_E:
                     {
                         const farmstead::TilePosition target = model.tileInFront();
+
                         if (!model.isInBounds(target.column, target.row)) {
                             std::cout << "Nothing there - outside the map!\n";
                         }
@@ -116,6 +117,25 @@ int main(){
                         else {
                             std::cout << "Cannot till this tile. "
                                     << "It may be an obstacle or already tilled.\n";
+                        }
+
+                        break;
+                    }
+                    case SDLK_P:
+                    {
+                        farmstead::TilePosition target = model.tileInFront();
+                        // Attempt to plant on that tile.
+                        if (!model.isInBounds(target.column, target.row)) {
+                            std::cout << "Cannot plant: outside the map.\n";
+                        }
+                        else if (model.tryPlant(target.column, target.row)) {
+                            std::cout << "Successfully planted the crop ("
+                                    << target.column << ", "
+                                    << target.row << ").\n";
+                        }
+                        else {
+                            std::cout << "Cannot plant on this tile. "
+                                    << "It may be untilled, an obstacle, or already planted.\n";
                         }
 
                         break;
@@ -156,6 +176,21 @@ int main(){
                 };
 
                 SDL_RenderFillRect(renderPointer, &tileRect);
+
+                if (model.isPlanted(col, row)) {
+                    constexpr float markerSize = 12.0f;
+                    constexpr float padding = (tileSize - markerSize) / 2.0f;
+
+                    SDL_FRect seedMarker{
+                        col * tileSize + padding,
+                        row * tileSize + padding,
+                        markerSize,
+                        markerSize
+                    };
+
+                    SDL_SetRenderDrawColor(renderPointer, 190, 150, 70, 255);
+                    SDL_RenderFillRect(renderPointer, &seedMarker);
+                }
             }
         }
 
