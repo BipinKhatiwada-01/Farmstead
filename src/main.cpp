@@ -96,9 +96,30 @@ int main(){
                         }
                         else {
                             std::cout << "OBSTACLE\n";
-                        }                        
+                        } 
+                        
+                       break;                       
                     }
+
+                    case SDLK_T:
+                    {
+                        farmstead::TilePosition target = model.tileInFront();
+
+                        if (!model.isInBounds(target.column, target.row)) {
+                            std::cout << "Cannot till: outside the map.\n";
+                        }
+                        else if (model.tryTill(target.column, target.row)) {
+                            std::cout << "Successfully tilled tile ("
+                                    << target.column << ", "
+                                    << target.row << ").\n";
+                        }
+                        else {
+                            std::cout << "Cannot till this tile. "
+                                    << "It may be an obstacle or already tilled.\n";
+                        }
+
                         break;
+                    }
                     default:
                         break;                
                 }
@@ -114,16 +135,27 @@ int main(){
 
                farmstead::TileType type = model.tileAt(col, row);
 
-                if (type == farmstead::TileType::GROUND) {
-                    SDL_SetRenderDrawColor(renderPointer, 30, 150, 80, 255);
+                if (type == farmstead::TileType::OBSTACLE) {
+                    // Obstacles
+                    SDL_SetRenderDrawColor(renderPointer, 10, 30, 20, 255);
+                }
+                else if (model.isTilled(col, row)) {
+                    // Tilled soil
+                    SDL_SetRenderDrawColor(renderPointer, 130, 85, 50, 255);
                 }
                 else {
-                    SDL_SetRenderDrawColor(renderPointer, 10, 30, 20, 255);                
+                    // Untilled ground
+                    SDL_SetRenderDrawColor(renderPointer, 30, 150, 80, 255);
                 }
 
-                SDL_FRect tileRect{col * tileSize, row * tileSize, tileSize, tileSize};
-                SDL_RenderFillRect(renderPointer, &tileRect);
+                SDL_FRect tileRect{
+                    col * tileSize,
+                    row * tileSize,
+                    tileSize,
+                    tileSize
+                };
 
+                SDL_RenderFillRect(renderPointer, &tileRect);
             }
         }
 
