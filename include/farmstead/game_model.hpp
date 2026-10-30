@@ -96,7 +96,6 @@ public:
 
   Direction facingDirection() const;
 
-<<<<<<< HEAD
   /// Tries to till the ground tile at (column, row) into farmable soil.
   ///
   /// Returns true if the tile was untilled GROUND and is now tilled.
@@ -110,8 +109,6 @@ public:
   /// ground, for obstacles, and for anything off the map. Safe with any int.
   bool isTilled(int column, int row) const;
 
-=======
->>>>>>> origin/dev/Bipin
 private:
   // Flat index of a tile, row-major: row * kMapWidth + column.
   // Precondition: (column, row) is in bounds; callers check isInBounds first.
@@ -124,13 +121,9 @@ private:
 
   // what direction player is facing currently
   Direction facing;
-<<<<<<< HEAD
-
   // Farming state, kept apart from terrain: same size and row-major indexing
   // as `tiles`. Only GROUND tiles are ever set to true.
   std::array<bool, kMapWidth * kMapHeight> tilled{};
-=======
->>>>>>> origin/dev/Bipin
-};
 
-} // namespace farmstead
+}; // namespace farmstead
+}
