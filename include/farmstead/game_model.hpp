@@ -109,8 +109,18 @@ public:
   /// ground, for obstacles, and for anything off the map. Safe with any int.
   bool isTilled(int column, int row) const;
 
+  /// Tries to plant a seed at (column, row). One crop type, unlimited seeds.
+  ///
+  /// Returns true if the tile was tilled and empty and now holds a crop.
+  /// Returns false, changing nothing, if the tile is untilled ground, an
+  /// OBSTACLE, already planted, or off the map. Planting does not change the
+  /// terrain or un-till the soil: tileAt() still reports GROUND, isTilled()
+  /// stays true, and the tile stays walkable. As with tilling, the caller
+  /// chooses the target (e.g. tileInFront()).
   bool tryPlant(int column, int row);
 
+  /// True if a crop has been planted at (column, row). False for empty soil,
+  /// untilled ground, obstacles, and anything off the map. Safe with any int.
   bool isPlanted(int column, int row) const;
 
 private:
@@ -130,6 +140,8 @@ private:
   // as `tiles`. Only GROUND tiles are ever set to true.
   std::array<bool, kMapWidth * kMapHeight> tilled{};
 
+  // Crop state, one entry per tile, same indexing again. A crop can only exist
+  // on tilled soil, so planted implies tilled implies GROUND.
   std::array<bool, kMapWidth * kMapHeight> planted{};
 };
 
