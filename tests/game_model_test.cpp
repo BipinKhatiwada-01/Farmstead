@@ -772,6 +772,7 @@ static void tileInFront_afterBlockedMoveAtMapEdgeIsOffTheMap() {
 }
 
 // ---------------------------------------------------------------------------
+<<<<<<< HEAD
 // Tilling
 // Terrain (tileAt) and farming state (isTilled) are separate layers. Only
 // GROUND can be tilled, and only once. Tilled ground is still GROUND and still
@@ -949,6 +950,8 @@ static void tilling_eachModelHasItsOwnFarmState() {
 }
 
 // ---------------------------------------------------------------------------
+=======
+>>>>>>> origin/dev/Bipin
 // Runner: prints one line per test so you can see exactly which one failed.
 // ---------------------------------------------------------------------------
 
@@ -1030,6 +1033,7 @@ int main() {
   RUN(tileInFront_afterBlockedMoveUsesTheNewFacing);
   RUN(tileInFront_afterBlockedMoveAtMapEdgeIsOffTheMap);
 
+<<<<<<< HEAD
   RUN(tilling_everyTileStartsUntilled);
   RUN(tilling_validGroundSucceeds);
   RUN(tilling_sameTileCannotBeTilledTwice);
@@ -1046,6 +1050,8 @@ int main() {
   RUN(tilling_tileInFrontThatCannotBeTilledIsRejected);
   RUN(tilling_eachModelHasItsOwnFarmState);
 
+=======
+>>>>>>> origin/dev/Bipin
   RUN(randomWalk_alwaysObeysTheRules);
 
   if (g_failures == 0) {
