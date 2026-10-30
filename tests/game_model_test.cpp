@@ -29,7 +29,7 @@
 //   - column 1, row 5, row 9 and row 0 are all ground (used as walking routes)
 //   - (14,8) is an isolated obstacle: all four neighbours are ground
 
-#include "farmstead/game_model.hpp"
+#include "../include/farmstead/game_model.hpp"
 
 #include <cstdint>
 #include <cstdlib>
@@ -950,8 +950,218 @@ static void tilling_eachModelHasItsOwnFarmState() {
 }
 
 // ---------------------------------------------------------------------------
+<<<<<<< HEAD
 =======
 >>>>>>> origin/dev/Bipin
+=======
+// Planting
+// A seed can only go on TILLED, EMPTY soil. Planting adds crop state on top of
+// the existing layers: it must not change terrain and must not un-till the
+// soil. One crop type, unlimited seeds, no growth yet.
+// ---------------------------------------------------------------------------
+
+static int countPlanted(const GameModel &m) {
+  int count = 0;
+  for (int row = 0; row < m.mapHeight(); ++row) {
+    for (int column = 0; column < m.mapWidth(); ++column) {
+      if (m.isPlanted(column, row)) {
+        ++count;
+      }
+    }
+  }
+  return count;
+}
+
+static void tillAndPlant(GameModel &m, int column, int row) {
+  CHECK(m.tryTill(column, row));
+  CHECK(m.tryPlant(column, row));
+}
+
+static void planting_everyTileStartsEmpty() {
+  GameModel m;
+  CHECK(countPlanted(m) == 0);
+  CHECK(m.tryTill(3, 2));
+  CHECK(!m.isPlanted(3, 2)); // tilling alone does not plant anything
+}
+
+static void planting_tilledEmptySoilSucceeds() {
+  GameModel m;
+  CHECK(m.tryTill(3, 2));
+  CHECK(m.tryPlant(3, 2));
+  CHECK(m.isPlanted(3, 2));
+}
+
+static void planting_untilledGroundFails() {
+  GameModel m;
+  CHECK(!m.tryPlant(3, 2));
+  CHECK(!m.isPlanted(3, 2));
+  CHECK(!m.isTilled(3, 2)); // a refused plant must not till it as a side effect
+}
+
+static void planting_everyObstacleRejects() {
+  GameModel m;
+  int obstaclesTried = 0;
+  for (int row = 0; row < m.mapHeight(); ++row) {
+    for (int column = 0; column < m.mapWidth(); ++column) {
+      if (m.tileAt(column, row) == TileType::OBSTACLE) {
+        CHECK(!m.tryPlant(column, row));
+        CHECK(!m.isPlanted(column, row));
+        ++obstaclesTried;
+      }
+    }
+  }
+  CHECK(obstaclesTried == 23);
+  CHECK(countPlanted(m) == 0);
+}
+
+static void planting_sameTileCannotBePlantedTwice() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  CHECK(!m.tryPlant(3, 2));
+  CHECK(!m.tryPlant(3, 2));
+  CHECK(m.isPlanted(3, 2)); // a refused attempt must not remove the crop
+  CHECK(countPlanted(m) == 1);
+}
+
+static void planting_outOfBoundsFails() {
+  GameModel m;
+  CHECK(!m.tryPlant(-1, 0));
+  CHECK(!m.tryPlant(0, -1));
+  CHECK(!m.tryPlant(-1, -1));
+  CHECK(!m.tryPlant(GameModel::kMapWidth, 0));
+  CHECK(!m.tryPlant(0, GameModel::kMapHeight));
+  CHECK(!m.tryPlant(GameModel::kMapWidth, GameModel::kMapHeight));
+  CHECK(countPlanted(m) == 0);
+}
+
+// Flat-array trap again: (20,0) is index 20 = tile (0,1); (-1,1) is index 19 =
+// tile (19,0). Both are made TILLED here, so a missing bounds check would let
+// the off-map attempt plant on them instead of being rejected.
+static void planting_outOfBoundsNeverTouchesAnotherTile() {
+  GameModel m;
+  CHECK(m.tryTill(0, 1));
+  CHECK(m.tryTill(19, 0));
+  CHECK(!m.tryPlant(GameModel::kMapWidth, 0));
+  CHECK(!m.isPlanted(0, 1));
+  CHECK(!m.tryPlant(-1, 1));
+  CHECK(!m.isPlanted(19, 0));
+  CHECK(countPlanted(m) == 0);
+}
+
+static void isPlanted_outOfBoundsIsFalseBesidePlantedTiles() {
+  GameModel m;
+  tillAndPlant(m, 0, 1);
+  tillAndPlant(m, 19, 0);
+  CHECK(!m.isPlanted(GameModel::kMapWidth, 0)); // would alias (0,1)
+  CHECK(!m.isPlanted(-1, 1));                   // would alias (19,0)
+}
+
+static void planting_tilledSoilRemainsTilled() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  CHECK(m.isTilled(3, 2));
+}
+
+static void planting_terrainRemainsGround() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  CHECK_TILE(m, 3, 2, TileType::GROUND);
+}
+
+static void planting_changesOnlyTheTargetTile() {
+  GameModel m;
+  CHECK(m.tryTill(3, 2));
+  CHECK(m.tryTill(4, 2)); // tilled neighbour that stays EMPTY
+  CHECK(m.tryPlant(3, 2));
+  CHECK(countPlanted(m) == 1);
+  CHECK(m.isTilled(4, 2));
+  CHECK(!m.isPlanted(4, 2)); // tilled but empty is its own state
+  CHECK(!m.isPlanted(2, 2));
+  CHECK(!m.isPlanted(3, 1));
+  CHECK(!m.isPlanted(3, 3));
+  CHECK(!m.isPlanted(2, 3)); // what a swapped (column,row) index would hit
+  CHECK(m.tryPlant(4, 2));   // the neighbour can still be planted afterwards
+  CHECK(countPlanted(m) == 2);
+}
+
+static void planting_failedAttemptsDoNotChangeState() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  CHECK(!m.tryPlant(3, 2));                    // already planted
+  CHECK(!m.tryPlant(6, 2));                    // untilled ground
+  CHECK(!m.tryPlant(5, 1));                    // obstacle
+  CHECK(!m.tryPlant(-1, 0));                   // off the map
+  CHECK(!m.tryPlant(GameModel::kMapWidth, 0)); // off the map
+  CHECK(countPlanted(m) == 1);
+  CHECK(countTilled(m) == 1); // failed plants did not till anything
+  CHECK(m.isPlanted(3, 2));
+}
+
+// Tilling an already-planted tile is refused, and must not wipe the crop.
+static void planting_cropSurvivesAFailedTill() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  CHECK(!m.tryTill(3, 2));
+  CHECK(m.isTilled(3, 2));
+  CHECK(m.isPlanted(3, 2));
+}
+
+static void planting_playerCanWalkOverPlantedSoil() {
+  GameModel m;
+  tillAndPlant(m, 2, 1);
+  tillAndPlant(m, 3, 1);
+  tillAndPlant(m, 4, 1);
+  MOVE(m, Direction::RIGHT, 3); // (4,1): every step lands on a crop
+  CHECK_POS(m, 4, 1);
+  MOVE(m, Direction::LEFT, 3); // and back to (1,1)
+  CHECK_POS(m, 1, 1);
+  CHECK(m.isPlanted(2, 1)); // walking does not trample anything
+  CHECK(m.isPlanted(3, 1));
+  CHECK(m.isPlanted(4, 1));
+  CHECK(m.isTilled(3, 1));
+}
+
+// The way the SDL layer will use it: target = tileInFront().
+static void planting_worksWithTileInFront() {
+  GameModel m; // (1,1), facing DOWN
+  const TilePosition front = m.tileInFront();
+  CHECK(m.tryTill(front.column, front.row));
+  CHECK(m.tryPlant(front.column, front.row));
+  CHECK(m.isPlanted(1, 2));
+  CHECK(m.tryMove(Direction::DOWN)); // step onto the planted tile
+  CHECK_POS(m, 1, 2);
+  CHECK(m.isPlanted(1, 2));
+}
+
+static void planting_tileInFrontThatCannotBePlantedIsRejected() {
+  GameModel untilled; // (1,2) is ground but not tilled
+  const TilePosition soil = untilled.tileInFront();
+  CHECK(!untilled.tryPlant(soil.column, soil.row));
+
+  GameModel wall;
+  MOVE(wall, Direction::RIGHT, 3); // (4,1), facing RIGHT; wall at (5,1)
+  const TilePosition wallFront = wall.tileInFront();
+  CHECK(!wall.tryPlant(wallFront.column, wallFront.row));
+
+  GameModel edge;
+  MOVE(edge, Direction::UP, 1); // (1,0), facing UP; front is off the map
+  const TilePosition edgeFront = edge.tileInFront();
+  CHECK(!edge.tryPlant(edgeFront.column, edgeFront.row));
+
+  CHECK(countPlanted(untilled) + countPlanted(wall) + countPlanted(edge) == 0);
+}
+
+static void planting_eachModelHasItsOwnCrops() {
+  GameModel a;
+  GameModel b;
+  tillAndPlant(a, 3, 2);
+  CHECK(a.isPlanted(3, 2));
+  CHECK(!b.isPlanted(3, 2));
+  CHECK(!b.tryPlant(3, 2)); // b's soil is untilled, so it still refuses
+}
+
+// ---------------------------------------------------------------------------
+>>>>>>> origin/main
 // Runner: prints one line per test so you can see exactly which one failed.
 // ---------------------------------------------------------------------------
 
@@ -1050,8 +1260,29 @@ int main() {
   RUN(tilling_tileInFrontThatCannotBeTilledIsRejected);
   RUN(tilling_eachModelHasItsOwnFarmState);
 
+<<<<<<< HEAD
 =======
 >>>>>>> origin/dev/Bipin
+=======
+  RUN(planting_everyTileStartsEmpty);
+  RUN(planting_tilledEmptySoilSucceeds);
+  RUN(planting_untilledGroundFails);
+  RUN(planting_everyObstacleRejects);
+  RUN(planting_sameTileCannotBePlantedTwice);
+  RUN(planting_outOfBoundsFails);
+  RUN(planting_outOfBoundsNeverTouchesAnotherTile);
+  RUN(isPlanted_outOfBoundsIsFalseBesidePlantedTiles);
+  RUN(planting_tilledSoilRemainsTilled);
+  RUN(planting_terrainRemainsGround);
+  RUN(planting_changesOnlyTheTargetTile);
+  RUN(planting_failedAttemptsDoNotChangeState);
+  RUN(planting_cropSurvivesAFailedTill);
+  RUN(planting_playerCanWalkOverPlantedSoil);
+  RUN(planting_worksWithTileInFront);
+  RUN(planting_tileInFrontThatCannotBePlantedIsRejected);
+  RUN(planting_eachModelHasItsOwnCrops);
+
+>>>>>>> origin/main
   RUN(randomWalk_alwaysObeysTheRules);
 
   if (g_failures == 0) {

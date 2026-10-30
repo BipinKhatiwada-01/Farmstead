@@ -134,13 +134,14 @@ bool GameModel::tryTill(int column, int row) {
   if (!isInBounds(column, row)) {
     return false;
   }
-  if (tiles[indexOf(column, row)] != TileType::GROUND) {
+  const std::size_t index = indexOf(column, row);
+  if (tiles[index] != TileType::GROUND) {
     return false;
   }
-  if (tilled[indexOf(column, row)]) {
+  if (tilled[index]) {
     return false;
   }
-  tilled[indexOf(column, row)] = true;
+  tilled[index] = true;
   return true;
 }
 
@@ -149,6 +150,28 @@ bool GameModel::isTilled(int column, int row) const {
     return false;
   }
   return tilled[indexOf(column, row)];
+}
+
+bool GameModel::tryPlant(int column, int row) {
+  if (!isInBounds(column, row)) {
+    return false;
+  }
+  const std::size_t index = indexOf(column, row);
+  if (!tilled[index]) {
+    return false;
+  }
+  if (planted[index]) {
+    return false;
+  }
+  planted[index] = true;
+  return true;
+}
+
+bool GameModel::isPlanted(int column, int row) const {
+  if (!isInBounds(column, row)) {
+    return false;
+  }
+  return planted[indexOf(column, row)];
 }
 
 } // namespace farmstead
