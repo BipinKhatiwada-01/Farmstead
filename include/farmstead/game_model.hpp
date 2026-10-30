@@ -109,6 +109,10 @@ public:
   /// ground, for obstacles, and for anything off the map. Safe with any int.
   bool isTilled(int column, int row) const;
 
+  bool tryPlant(int column, int row);
+
+  bool isPlanted(int column, int row) const;
+
 private:
   // Flat index of a tile, row-major: row * kMapWidth + column.
   // Precondition: (column, row) is in bounds; callers check isInBounds first.
@@ -125,6 +129,8 @@ private:
   // Farming state, kept apart from terrain: same size and row-major indexing
   // as `tiles`. Only GROUND tiles are ever set to true.
   std::array<bool, kMapWidth * kMapHeight> tilled{};
+
+  std::array<bool, kMapWidth * kMapHeight> planted{};
 };
 
 } // namespace farmstead
