@@ -772,6 +772,183 @@ static void tileInFront_afterBlockedMoveAtMapEdgeIsOffTheMap() {
 }
 
 // ---------------------------------------------------------------------------
+// Tilling
+// Terrain (tileAt) and farming state (isTilled) are separate layers. Only
+// GROUND can be tilled, and only once. Tilled ground is still GROUND and still
+// walkable. Test tiles are deliberately NOT on the diagonal (e.g. (3,2), not
+// (2,2)), so a swapped column/row index cannot hide.
+// ---------------------------------------------------------------------------
+
+static int countTilled(const GameModel &m) {
+  int count = 0;
+  for (int row = 0; row < m.mapHeight(); ++row) {
+    for (int column = 0; column < m.mapWidth(); ++column) {
+      if (m.isTilled(column, row)) {
+        ++count;
+      }
+    }
+  }
+  return count;
+}
+
+static void tilling_everyTileStartsUntilled() {
+  GameModel m;
+  CHECK(countTilled(m) == 0);
+  CHECK(!m.isTilled(3, 2));
+  CHECK(!m.isTilled(1, 1)); // the tile the player stands on
+}
+
+static void tilling_validGroundSucceeds() {
+  GameModel m;
+  CHECK(m.tryTill(3, 2));
+  CHECK(m.isTilled(3, 2));
+}
+
+static void tilling_sameTileCannotBeTilledTwice() {
+  GameModel m;
+  CHECK(m.tryTill(3, 2));
+  CHECK(!m.tryTill(3, 2));
+  CHECK(!m.tryTill(3, 2));
+  CHECK(m.isTilled(3, 2)); // a refused attempt must not undo it
+}
+
+static void tilling_everyObstacleRejectsTilling() {
+  GameModel m;
+  int obstaclesTried = 0;
+  for (int row = 0; row < m.mapHeight(); ++row) {
+    for (int column = 0; column < m.mapWidth(); ++column) {
+      if (m.tileAt(column, row) == TileType::OBSTACLE) {
+        CHECK(!m.tryTill(column, row));
+        CHECK(!m.isTilled(column, row));
+        ++obstaclesTried;
+      }
+    }
+  }
+  CHECK(obstaclesTried == 23);
+  CHECK(countTilled(m) == 0);
+}
+
+static void tilling_outOfBoundsRejectsTilling() {
+  GameModel m;
+  CHECK(!m.tryTill(-1, 0));
+  CHECK(!m.tryTill(0, -1));
+  CHECK(!m.tryTill(-1, -1));
+  CHECK(!m.tryTill(GameModel::kMapWidth, 0));
+  CHECK(!m.tryTill(0, GameModel::kMapHeight));
+  CHECK(!m.tryTill(GameModel::kMapWidth, GameModel::kMapHeight));
+  CHECK(countTilled(m) == 0);
+}
+
+// In the flat array, an off-map coordinate can land on a REAL tile:
+// (20,0) -> index 20 -> tile (0,1), and (-1,1) -> index 19 -> tile (19,0).
+// A missing bounds check would till those instead of rejecting.
+static void tilling_outOfBoundsNeverTouchesAnotherTile() {
+  GameModel m;
+  CHECK(!m.tryTill(GameModel::kMapWidth, 0));
+  CHECK(!m.isTilled(0, 1));
+  CHECK(!m.tryTill(-1, 1));
+  CHECK(!m.isTilled(19, 0));
+  CHECK(countTilled(m) == 0);
+}
+
+// Same aliasing, on the read side.
+static void isTilled_outOfBoundsIsFalseBesideTilledTiles() {
+  GameModel m;
+  CHECK(m.tryTill(0, 1));
+  CHECK(m.tryTill(19, 0));
+  CHECK(!m.isTilled(GameModel::kMapWidth, 0)); // would alias (0,1)
+  CHECK(!m.isTilled(-1, 1));                   // would alias (19,0)
+}
+
+static void tilling_tilledTileRemainsGround() {
+  GameModel m;
+  CHECK(m.tryTill(3, 2));
+  CHECK_TILE(m, 3, 2, TileType::GROUND);
+}
+
+static void tilling_neverChangesTerrainOnAnyTile() {
+  GameModel m;
+  for (int row = 0; row < m.mapHeight(); ++row) {
+    for (int column = 0; column < m.mapWidth(); ++column) {
+      const TileType before = m.tileAt(column, row);
+      m.tryTill(column, row);
+      CHECK_TILE(m, column, row, before);
+    }
+  }
+}
+
+static void tilling_changesOnlyTheTargetTile() {
+  GameModel m;
+  CHECK(m.tryTill(3, 2));
+  CHECK(countTilled(m) == 1);
+  CHECK(!m.isTilled(2, 2));
+  CHECK(!m.isTilled(4, 2));
+  CHECK(!m.isTilled(3, 1));
+  CHECK(!m.isTilled(3, 3));
+  CHECK(!m.isTilled(2, 3)); // what a swapped (column,row) index would hit
+}
+
+static void tilling_failedAttemptsDoNotChangeState() {
+  GameModel m;
+  CHECK(m.tryTill(3, 2));
+  CHECK(countTilled(m) == 1);
+  CHECK(!m.tryTill(3, 2));                    // already tilled
+  CHECK(!m.tryTill(5, 1));                    // obstacle
+  CHECK(!m.tryTill(-1, 0));                   // off the map
+  CHECK(!m.tryTill(GameModel::kMapWidth, 0)); // off the map
+  CHECK(countTilled(m) == 1);
+  CHECK(m.isTilled(3, 2));
+}
+
+static void tilling_playerCanWalkAcrossTilledGround() {
+  GameModel m;
+  CHECK(m.tryTill(2, 1));
+  CHECK(m.tryTill(3, 1));
+  CHECK(m.tryTill(4, 1));
+  MOVE(m, Direction::RIGHT, 3); // (4,1): every step lands on tilled soil
+  CHECK_POS(m, 4, 1);
+  MOVE(m, Direction::LEFT, 3); // and back to (1,1)
+  CHECK_POS(m, 1, 1);
+  CHECK(m.isTilled(2, 1)); // walking does not undo tilling
+  CHECK(m.isTilled(3, 1));
+  CHECK(m.isTilled(4, 1));
+}
+
+// The way the SDL layer will use it: target = tileInFront().
+static void tilling_worksWithTileInFront() {
+  GameModel m; // (1,1), facing DOWN
+  const TilePosition front = m.tileInFront();
+  CHECK(m.tryTill(front.column, front.row));
+  CHECK(m.isTilled(1, 2));
+  CHECK(m.tryMove(Direction::DOWN)); // step onto the new soil
+  CHECK_POS(m, 1, 2);
+  CHECK(m.isTilled(1, 2));
+}
+
+static void tilling_tileInFrontThatCannotBeTilledIsRejected() {
+  GameModel wall;
+  MOVE(wall, Direction::RIGHT, 3); // (4,1), facing RIGHT; wall at (5,1)
+  const TilePosition wallFront = wall.tileInFront();
+  CHECK(!wall.tryTill(wallFront.column, wallFront.row));
+  CHECK(!wall.isTilled(5, 1));
+
+  GameModel edge;
+  MOVE(edge, Direction::UP, 1); // (1,0), facing UP; front is off the map
+  const TilePosition edgeFront = edge.tileInFront();
+  CHECK(!edge.tryTill(edgeFront.column, edgeFront.row));
+  CHECK(countTilled(edge) == 0);
+}
+
+static void tilling_eachModelHasItsOwnFarmState() {
+  GameModel a;
+  GameModel b;
+  CHECK(a.tryTill(3, 2));
+  CHECK(a.isTilled(3, 2));
+  CHECK(!b.isTilled(3, 2));
+  CHECK(b.tryTill(3, 2)); // b is unaffected, so it can till the same tile
+}
+
+// ---------------------------------------------------------------------------
 // Runner: prints one line per test so you can see exactly which one failed.
 // ---------------------------------------------------------------------------
 
@@ -852,6 +1029,22 @@ int main() {
   RUN(tileInFront_afterBlockedMoveStaysOnTheWall);
   RUN(tileInFront_afterBlockedMoveUsesTheNewFacing);
   RUN(tileInFront_afterBlockedMoveAtMapEdgeIsOffTheMap);
+
+  RUN(tilling_everyTileStartsUntilled);
+  RUN(tilling_validGroundSucceeds);
+  RUN(tilling_sameTileCannotBeTilledTwice);
+  RUN(tilling_everyObstacleRejectsTilling);
+  RUN(tilling_outOfBoundsRejectsTilling);
+  RUN(tilling_outOfBoundsNeverTouchesAnotherTile);
+  RUN(isTilled_outOfBoundsIsFalseBesideTilledTiles);
+  RUN(tilling_tilledTileRemainsGround);
+  RUN(tilling_neverChangesTerrainOnAnyTile);
+  RUN(tilling_changesOnlyTheTargetTile);
+  RUN(tilling_failedAttemptsDoNotChangeState);
+  RUN(tilling_playerCanWalkAcrossTilledGround);
+  RUN(tilling_worksWithTileInFront);
+  RUN(tilling_tileInFrontThatCannotBeTilledIsRejected);
+  RUN(tilling_eachModelHasItsOwnFarmState);
 
   RUN(randomWalk_alwaysObeysTheRules);
 
