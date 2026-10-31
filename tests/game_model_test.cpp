@@ -1596,6 +1596,277 @@ static void watering_eachModelHasItsOwnState() {
 }
 
 // ---------------------------------------------------------------------------
+// Harvesting
+// A MATURE crop can be harvested: the crop is removed (stage NONE, growth and
+// watering state gone), the soil stays tilled and walkable, and the produce
+// counter goes up by one. Anything else is refused and changes nothing.
+// ---------------------------------------------------------------------------
+
+// Plant on fresh soil and water it until it is mature.
+static void growToMature(GameModel &m, int column, int row) {
+  tillAndPlant(m, column, row);
+  waterDays(m, column, row, kDaysToMature);
+  CHECK_STAGE(m, column, row, CropStage::MATURE);
+}
+
+static void harvest_produceCountStartsAtZero() {
+  GameModel m;
+  CHECK(m.produceCount() == 0);
+  tillAndPlant(m, 3, 2);
+  m.advanceDay();
+  CHECK(m.produceCount() == 0); // planting and growing alone collect nothing
+}
+
+static void harvest_matureCropSucceedsAndCountsOne() {
+  GameModel m;
+  growToMature(m, 3, 2);
+  CHECK(m.tryHarvest(3, 2));
+  CHECK(m.produceCount() == 1);
+  CHECK_STAGE(m, 3, 2, CropStage::NONE);
+  CHECK(!m.isPlanted(3, 2));
+}
+
+static void harvest_keepsTheSoilTilledAndTheTerrainGround() {
+  GameModel m;
+  growToMature(m, 3, 2);
+  CHECK(m.tryHarvest(3, 2));
+  CHECK(m.isTilled(3, 2));
+  CHECK_TILE(m, 3, 2, TileType::GROUND);
+}
+
+// The boundary matters: five watered days is still a sprout, six is mature.
+static void harvest_seedAndSproutAreRefusedUntilTheSixthWateredDay() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  CHECK(!m.tryHarvest(3, 2)); // seed
+  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+
+  waterDays(m, 3, 2, kDaysToSprout);
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  CHECK(!m.tryHarvest(3, 2)); // sprout
+
+  waterDays(m, 3, 2, kDaysToMature - kDaysToSprout - 1);
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT); // five watered days
+  CHECK(!m.tryHarvest(3, 2));
+  CHECK(m.produceCount() == 0);
+  CHECK(m.isPlanted(3, 2)); // refused harvests leave the crop alone
+
+  waterAndAdvance(m, 3, 2); // sixth watered day
+  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+  CHECK(m.tryHarvest(3, 2));
+  CHECK(m.produceCount() == 1);
+}
+
+static void harvest_soilWithoutACropIsRefused() {
+  GameModel m;
+  CHECK(m.tryTill(3, 2)); // tilled but empty
+  CHECK(!m.tryHarvest(3, 2));
+  CHECK(!m.tryHarvest(6, 2)); // ordinary untilled ground
+  CHECK(m.produceCount() == 0);
+  CHECK(m.isTilled(3, 2));
+}
+
+static void harvest_everyObstacleIsRefused() {
+  GameModel m;
+  int obstaclesTried = 0;
+  for (int row = 0; row < m.mapHeight(); ++row) {
+    for (int column = 0; column < m.mapWidth(); ++column) {
+      if (m.tileAt(column, row) == TileType::OBSTACLE) {
+        CHECK(!m.tryHarvest(column, row));
+        ++obstaclesTried;
+      }
+    }
+  }
+  CHECK(obstaclesTried == 23);
+  CHECK(m.produceCount() == 0);
+}
+
+static void harvest_outOfBoundsIsRefused() {
+  GameModel m;
+  CHECK(!m.tryHarvest(-1, 0));
+  CHECK(!m.tryHarvest(0, -1));
+  CHECK(!m.tryHarvest(-1, -1));
+  CHECK(!m.tryHarvest(GameModel::kMapWidth, 0));
+  CHECK(!m.tryHarvest(0, GameModel::kMapHeight));
+  CHECK(!m.tryHarvest(GameModel::kMapWidth, GameModel::kMapHeight));
+  CHECK(m.produceCount() == 0);
+}
+
+// Flat-array trap: (20,0) is index 20 = tile (0,1); (-1,1) is index 19 = tile
+// (19,0). Both hold MATURE crops here, so a missing bounds check would harvest
+// them instead of rejecting the off-map attempt.
+static void harvest_outOfBoundsNeverTouchesAnotherCrop() {
+  GameModel m;
+  growToMature(m, 0, 1);
+  growToMature(m, 19, 0);
+  CHECK(!m.tryHarvest(GameModel::kMapWidth, 0));
+  CHECK(!m.tryHarvest(-1, 1));
+  CHECK_STAGE(m, 0, 1, CropStage::MATURE);
+  CHECK_STAGE(m, 19, 0, CropStage::MATURE);
+  CHECK(m.produceCount() == 0);
+}
+
+static void harvest_sameTileCannotBeHarvestedTwice() {
+  GameModel m;
+  growToMature(m, 3, 2);
+  CHECK(m.tryHarvest(3, 2));
+  CHECK(!m.tryHarvest(3, 2));
+  CHECK(!m.tryHarvest(3, 2));
+  CHECK(m.produceCount() == 1); // one crop, one unit
+}
+
+static void harvest_failedAttemptsDoNotChangeState() {
+  GameModel m;
+  growToMature(m, 3, 2);
+  tillAndPlant(m, 4, 2);                         // a seed beside it
+  CHECK(!m.tryHarvest(4, 2));                    // seed
+  CHECK(!m.tryHarvest(6, 2));                    // untilled ground
+  CHECK(!m.tryHarvest(5, 1));                    // obstacle
+  CHECK(!m.tryHarvest(-1, 0));                   // off the map
+  CHECK(!m.tryHarvest(GameModel::kMapWidth, 0)); // off the map
+  CHECK(m.produceCount() == 0);
+  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+  CHECK_STAGE(m, 4, 2, CropStage::SEED);
+}
+
+static void harvest_countAccumulatesAcrossCrops() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  tillAndPlant(m, 4, 2);
+  tillAndPlant(m, 3, 3);
+  for (int day = 0; day < kDaysToMature; ++day) {
+    CHECK(m.tryWater(3, 2));
+    CHECK(m.tryWater(4, 2));
+    CHECK(m.tryWater(3, 3));
+    m.advanceDay();
+  }
+  CHECK(m.tryHarvest(3, 2));
+  CHECK(m.produceCount() == 1);
+  CHECK(m.tryHarvest(4, 2));
+  CHECK(m.produceCount() == 2);
+  CHECK(m.tryHarvest(3, 3));
+  CHECK(m.produceCount() == 3);
+}
+
+static void harvest_onlyTheTargetedCropIsRemoved() {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  tillAndPlant(m, 4, 2);
+  for (int day = 0; day < kDaysToMature; ++day) {
+    CHECK(m.tryWater(3, 2));
+    CHECK(m.tryWater(4, 2));
+    m.advanceDay();
+  }
+  CHECK(m.tryHarvest(3, 2));
+  CHECK_STAGE(m, 3, 2, CropStage::NONE);
+  CHECK_STAGE(m, 4, 2, CropStage::MATURE); // the neighbour is untouched
+  CHECK(countPlanted(m) == 1);
+  CHECK(!m.isPlanted(2, 3)); // what a swapped (column,row) index would hit
+  CHECK(m.produceCount() == 1);
+}
+
+static void harvest_emptiedTileCannotBeWateredOrHarvested() {
+  GameModel m;
+  growToMature(m, 3, 2);
+  CHECK(m.tryHarvest(3, 2));
+  CHECK(!m.tryWater(3, 2));
+  CHECK(!m.isWateredToday(3, 2));
+  CHECK(!m.tryHarvest(3, 2));
+  CHECK(m.produceCount() == 1);
+}
+
+// Removing the crop must also remove its "watered today" state.
+static void harvest_removedCropLeavesNoWateredStateBehind() {
+  GameModel m;
+  growToMature(m, 3, 2);
+  m.tryWater(3, 2); // watered today (result not asserted: see growth tests)
+  CHECK(m.tryHarvest(3, 2));
+  CHECK(!m.isWateredToday(3, 2));
+  CHECK(m.tryPlant(3, 2)); // soil is still tilled
+  CHECK(!m.isWateredToday(3, 2));
+  CHECK(m.tryWater(3, 2)); // the NEW crop is dry and can be watered
+}
+
+static void harvest_replantedCropStartsAsAFreshSeed() {
+  GameModel m;
+  growToMature(m, 3, 2);
+  CHECK(m.tryHarvest(3, 2));
+  CHECK(m.tryPlant(3, 2)); // no tryTill needed: the soil stayed tilled
+  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+
+  waterDays(m, 3, 2, kDaysToSprout - 1);
+  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+  waterAndAdvance(m, 3, 2);
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  waterDays(m, 3, 2, kDaysToMature - kDaysToSprout - 1);
+  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  waterAndAdvance(m, 3, 2);
+  CHECK_STAGE(m, 3, 2, CropStage::MATURE); // full 3 + 3 days again
+
+  CHECK(m.tryHarvest(3, 2));
+  CHECK(m.produceCount() == 2);
+}
+
+static void harvest_playerCanWalkOverHarvestedSoil() {
+  GameModel m;
+  growToMature(m, 2, 1);
+  growToMature(m, 3, 1);
+  growToMature(m, 4, 1);
+  CHECK(m.tryHarvest(2, 1));
+  CHECK(m.tryHarvest(3, 1));
+  CHECK(m.tryHarvest(4, 1));
+  MOVE(m, Direction::RIGHT, 3); // (4,1), over three emptied tiles
+  CHECK_POS(m, 4, 1);
+  MOVE(m, Direction::LEFT, 3);
+  CHECK_POS(m, 1, 1);
+  CHECK(m.produceCount() == 3);
+  CHECK(m.isTilled(3, 1)); // walking does not undo the soil
+}
+
+static void harvest_doesNotMoveOrTurnThePlayer() {
+  GameModel m;
+  growToMature(m, 3, 2);
+  MOVE(m, Direction::RIGHT, 1); // (2,1), facing RIGHT
+  CHECK(m.tryHarvest(3, 2));
+  CHECK_POS(m, 2, 1);
+  CHECK_FACING(m, Direction::RIGHT);
+}
+
+static void harvest_advanceDayDoesNotChangeTheProduceCount() {
+  GameModel m;
+  growToMature(m, 3, 2);
+  CHECK(m.tryHarvest(3, 2));
+  advanceDays(m, 5);
+  CHECK(m.produceCount() == 1);
+  CHECK_STAGE(m, 3, 2, CropStage::NONE); // no crop regrows by itself
+}
+
+// The way the SDL layer will use it: target = tileInFront().
+static void harvest_worksWithTileInFront() {
+  GameModel m; // (1,1), facing DOWN
+  const TilePosition front = m.tileInFront();
+  tillAndPlant(m, front.column, front.row);
+  waterDays(m, front.column, front.row, kDaysToMature);
+  CHECK(m.tryHarvest(front.column, front.row));
+  CHECK(m.produceCount() == 1);
+  CHECK(m.isTilled(1, 2));
+
+  GameModel bare; // front tile is plain ground: nothing to harvest
+  const TilePosition target = bare.tileInFront();
+  CHECK(!bare.tryHarvest(target.column, target.row));
+  CHECK(bare.produceCount() == 0);
+}
+
+static void harvest_eachModelHasItsOwnCount() {
+  GameModel a;
+  GameModel b;
+  growToMature(a, 3, 2);
+  CHECK(a.tryHarvest(3, 2));
+  CHECK(a.produceCount() == 1);
+  CHECK(b.produceCount() == 0);
+}
+
+// ---------------------------------------------------------------------------
 // Runner: prints one line per test so you can see exactly which one failed.
 // ---------------------------------------------------------------------------
 
@@ -1738,6 +2009,27 @@ int main() {
   RUN(growth_playerCanStillWalkOverGrownCrops);
   RUN(watering_worksWithTileInFront);
   RUN(watering_eachModelHasItsOwnState);
+
+  RUN(harvest_produceCountStartsAtZero);
+  RUN(harvest_matureCropSucceedsAndCountsOne);
+  RUN(harvest_keepsTheSoilTilledAndTheTerrainGround);
+  RUN(harvest_seedAndSproutAreRefusedUntilTheSixthWateredDay);
+  RUN(harvest_soilWithoutACropIsRefused);
+  RUN(harvest_everyObstacleIsRefused);
+  RUN(harvest_outOfBoundsIsRefused);
+  RUN(harvest_outOfBoundsNeverTouchesAnotherCrop);
+  RUN(harvest_sameTileCannotBeHarvestedTwice);
+  RUN(harvest_failedAttemptsDoNotChangeState);
+  RUN(harvest_countAccumulatesAcrossCrops);
+  RUN(harvest_onlyTheTargetedCropIsRemoved);
+  RUN(harvest_emptiedTileCannotBeWateredOrHarvested);
+  RUN(harvest_removedCropLeavesNoWateredStateBehind);
+  RUN(harvest_replantedCropStartsAsAFreshSeed);
+  RUN(harvest_playerCanWalkOverHarvestedSoil);
+  RUN(harvest_doesNotMoveOrTurnThePlayer);
+  RUN(harvest_advanceDayDoesNotChangeTheProduceCount);
+  RUN(harvest_worksWithTileInFront);
+  RUN(harvest_eachModelHasItsOwnCount);
 
   RUN(randomWalk_alwaysObeysTheRules);
 
