@@ -226,4 +226,26 @@ void GameModel::advanceDay() {
   }
 }
 
+bool GameModel::tryHarvest(int column, int row) {
+  if (!isInBounds(column, row)) {
+    return false;
+  }
+
+  int index = indexOf(column, row);
+
+  if (!crops[index].has_value()) {
+    return false;
+  }
+
+  if (crops[index]->stage() != CropStage::MATURE) {
+    return false;
+  }
+
+  crops[index].reset();
+  productCount++;
+  return true;
+}
+
+int GameModel::produceCount() const { return productCount; }
+
 } // namespace farmstead

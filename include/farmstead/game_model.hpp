@@ -141,6 +141,10 @@ public:
   // crops have their daily watering status reset.
   void advanceDay();
 
+  bool tryHarvest(int column, int row);
+
+  int produceCount() const;
+
 private:
   // Flat index of a tile, row-major: row * kMapWidth + column.
   // Precondition: (column, row) is in bounds; callers check isInBounds first.
@@ -160,6 +164,9 @@ private:
   // Stores crops by tile index. An empty optional represents
   // a tile without a planted crop.
   std::array<std::optional<Crop>, kMapWidth * kMapHeight> crops{};
+
+  // for now with no inventory
+  int productCount = 0;
 };
 
 }; // namespace farmstead
