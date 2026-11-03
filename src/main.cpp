@@ -99,6 +99,81 @@ void drawCrop(SDL_Renderer *renderer, int column, int row,
     }
 }
 
+
+void drawPlayer(SDL_Renderer *renderer, farmstead::TilePosition position,
+                farmstead::Direction facing) {
+    const float tileX = kMapOffsetX + static_cast<float>(position.column) * kTileSize;
+    const float tileY = kMapOffsetY + static_cast<float>(position.row) * kTileSize;
+
+    // Draw the character from small, deliberately layered rectangles. All
+    // coordinates below are local to the 40x40 tile.
+    const auto part = [&](float x, float y, float width, float height,
+                          Uint8 red, Uint8 green, Uint8 blue) {
+        const SDL_FRect rect{tileX + x, tileY + y, width, height};
+        fillRect(renderer, rect, red, green, blue);
+    };
+
+    // A soft-looking stepped shadow grounds the character on the tile.
+    part(10.0f, 33.0f, 20.0f, 3.0f, 23, 56, 38);
+    part(7.0f, 31.0f, 26.0f, 3.0f, 29, 67, 43);
+
+    // Backpack is visible from behind when the player faces upward.
+    if (facing == farmstead::Direction::UP) {
+        part(23.0f, 18.0f, 9.0f, 10.0f, 48, 39, 32);
+        part(24.0f, 19.0f, 7.0f, 8.0f, 145, 86, 48);
+        part(25.0f, 20.0f, 5.0f, 2.0f, 190, 128, 70);
+    }
+
+    // Trousers and sturdy brown boots.
+    part(11.0f, 24.0f, 8.0f, 8.0f, 39, 54, 65);
+    part(21.0f, 24.0f, 8.0f, 8.0f, 39, 54, 65);
+    part(10.0f, 29.0f, 9.0f, 6.0f, 54, 39, 31);
+    part(21.0f, 29.0f, 9.0f, 6.0f, 54, 39, 31);
+    part(11.0f, 30.0f, 6.0f, 2.0f, 120, 83, 52);
+    part(22.0f, 30.0f, 6.0f, 2.0f, 120, 83, 52);
+
+    // Jacket silhouette, sleeves, and the lighter front panel.
+    part(8.0f, 16.0f, 24.0f, 12.0f, 35, 50, 48);
+    part(10.0f, 17.0f, 20.0f, 10.0f, 55, 112, 101);
+    part(7.0f, 19.0f, 5.0f, 7.0f, 48, 91, 82);
+    part(28.0f, 19.0f, 5.0f, 7.0f, 48, 91, 82);
+    part(13.0f, 18.0f, 14.0f, 7.0f, 78, 139, 119);
+    part(18.0f, 18.0f, 4.0f, 2.0f, 218, 190, 113); // collar
+    part(19.0f, 21.0f, 2.0f, 2.0f, 232, 205, 143); // button
+
+    // Head, hair and face. The hat brim overlaps the top of the face.
+    part(12.0f, 7.0f, 16.0f, 14.0f, 48, 38, 34);   // hair outline
+    if (facing == farmstead::Direction::UP) {
+        part(13.0f, 10.0f, 14.0f, 10.0f, 83, 52, 39); // back of hair
+        part(15.0f, 12.0f, 10.0f, 5.0f, 105, 66, 46);
+    } else {
+        part(13.0f, 10.0f, 14.0f, 10.0f, 226, 174, 132); // face
+        part(12.0f, 11.0f, 3.0f, 6.0f, 83, 52, 39);      // side hair
+        part(25.0f, 11.0f, 3.0f, 6.0f, 83, 52, 39);
+    }
+    part(12.0f, 7.0f, 16.0f, 4.0f, 65, 43, 34); // hair under hat
+
+    // Straw hat: brim, crown, highlight and green band.
+    part(8.0f, 8.0f, 24.0f, 5.0f, 126, 87, 43);
+    part(10.0f, 5.0f, 20.0f, 6.0f, 211, 166, 83);
+    part(13.0f, 3.0f, 14.0f, 3.0f, 231, 197, 112);
+    part(13.0f, 9.0f, 14.0f, 2.0f, 89, 119, 65);
+    part(10.0f, 11.0f, 20.0f, 2.0f, 172, 126, 61);
+
+    // Tiny facial details change with facing direction.
+    if (facing == farmstead::Direction::DOWN) {
+        part(16.0f, 15.0f, 2.0f, 2.0f, 54, 43, 38);
+        part(22.0f, 15.0f, 2.0f, 2.0f, 54, 43, 38);
+        part(19.0f, 18.0f, 2.0f, 1.0f, 171, 104, 84);
+    } else if (facing == farmstead::Direction::LEFT) {
+        part(15.0f, 15.0f, 2.0f, 2.0f, 54, 43, 38);
+        part(13.0f, 18.0f, 2.0f, 2.0f, 171, 104, 84);
+    } else if (facing == farmstead::Direction::RIGHT) {
+        part(23.0f, 15.0f, 2.0f, 2.0f, 54, 43, 38);
+        part(25.0f, 18.0f, 2.0f, 2.0f, 171, 104, 84);
+    }
+}
+
 void renderWorld(SDL_Renderer *renderer, const farmstead::GameModel &model,
                  int currentDay) {
     // Background behind the world and HUD.
@@ -150,17 +225,8 @@ void renderWorld(SDL_Renderer *renderer, const farmstead::GameModel &model,
         SDL_RenderRect(renderer, &targetRect);
     }
 
-    // Draw the player last so the player appears above the world and highlight.
-    const farmstead::TilePosition playerPos = model.playerPosition();
-    constexpr float playerSize = kTileSize * 0.6f;
-    constexpr float playerPadding = (kTileSize - playerSize) / 2.0f;
-    const SDL_FRect playerRect{
-        kMapOffsetX + static_cast<float>(playerPos.column) * kTileSize + playerPadding,
-        kMapOffsetY + static_cast<float>(playerPos.row) * kTileSize + playerPadding,
-        playerSize,
-        playerSize
-    };
-    fillRect(renderer, playerRect, 220, 60, 60);
+    // Draw the player last so the character appears above the world and highlight.
+    drawPlayer(renderer, model.playerPosition(), model.facingDirection());
 
     SDL_RenderPresent(renderer);
 }
