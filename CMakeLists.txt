@@ -9,6 +9,7 @@ add_library(
   src/game_model.cpp
   src/Crop.cpp
   src/Inventory.cpp
+  src/Economy.cpp
 )
 
 target_include_directories(
@@ -112,5 +113,25 @@ if(BUILD_TESTING)
   )
 
   catch_discover_tests(inventory-tests)
+
+
+  # Economy tests
+  add_executable(
+    economy-tests
+    tests/economy_test.cpp
+  )
+
+  target_link_libraries(
+    economy-tests
+    PRIVATE farmstead-core Catch2::Catch2WithMain
+  )
+
+  target_compile_features(economy-tests PRIVATE cxx_std_20)
+
+  set_target_properties(economy-tests PROPERTIES
+    CXX_EXTENSIONS OFF
+  )
+
+  catch_discover_tests(economy-tests)
 
 endif()

@@ -24,7 +24,7 @@ bool Economy::addCoins(int amount) {
     return false;
   }
 
-  if (currency > std::numeric_limits<int>::max() - currency) {
+  if (currency > std::numeric_limits<int>::max() - amount) {
     return false;
   }
 
