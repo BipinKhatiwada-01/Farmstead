@@ -1,6 +1,6 @@
 // tests/game_model_checks.cpp
 //
-// Behaviour checks for farmstead::GameModel. No SDL, no test framework.
+// Behaviour checks for farmstead::GameModel. No SDL dependency.
 //
 // These checks are written against the CURRENT map in game_model.cpp.
 // Coordinates are (column, row); row 0 is the TOP; P marks the start (1,1).
@@ -31,71 +31,36 @@
 
 #include "../include/farmstead/game_model.hpp"
 
+#include <catch2/catch_all.hpp>
+
 #include <cstdint>
 #include <cstdlib>
-#include <iostream>
 
 using namespace farmstead;
 
 // ---------------------------------------------------------------------------
-// Tiny test helpers
+// Test helpers
 // ---------------------------------------------------------------------------
 
-static int g_failures = 0;
-
-#define CHECK(cond)                                                            \
+#define CHECK_POS(model, expectedColumn, expectedRow)                          \
   do {                                                                         \
-    if (!(cond)) {                                                             \
-      std::cerr << "  FAIL line " << __LINE__ << ": " #cond "\n";              \
-      ++g_failures;                                                            \
-    }                                                                          \
-  } while (0)
+    CHECK((model).playerPosition().column == (expectedColumn));                \
+    CHECK((model).playerPosition().row == (expectedRow));                      \
+  } while (false)
 
-static void checkPositionImpl(const GameModel &m, int column, int row,
-                              int line) {
-  const TilePosition p = m.playerPosition();
-  if (p.column != column || p.row != row) {
-    std::cerr << "  FAIL line " << line << ": expected player at (" << column
-              << "," << row << ") but was at (" << p.column << "," << p.row
-              << ")\n";
-    ++g_failures;
-  }
-}
-#define CHECK_POS(model, column, row)                                          \
-  checkPositionImpl((model), (column), (row), __LINE__)
-
-static const char *tileName(TileType t) {
-  return t == TileType::GROUND ? "GROUND" : "OBSTACLE";
-}
-
-static void checkTileImpl(const GameModel &m, int column, int row,
-                          TileType expected, int line) {
-  const TileType actual = m.tileAt(column, row);
-  if (actual != expected) {
-    std::cerr << "  FAIL line " << line << ": tile (" << column << "," << row
-              << ") expected " << tileName(expected) << " but was "
-              << tileName(actual) << "\n";
-    ++g_failures;
-  }
-}
 #define CHECK_TILE(model, column, row, expected)                               \
-  checkTileImpl((model), (column), (row), (expected), __LINE__)
+  CHECK((model).tileAt((column), (row)) == (expected))
 
 // Moves exactly `steps` times. Every step MUST succeed; if one is blocked the
 // failure is reported at the caller's line, with the position where it stopped.
-static void moveExactlyImpl(GameModel &m, Direction d, int steps, int line) {
+static void moveExactlyImpl(GameModel &m, Direction d, int steps) {
   for (int i = 0; i < steps; ++i) {
-    if (!m.tryMove(d)) {
-      std::cerr << "  FAIL line " << line << ": step " << (i + 1) << " of "
-                << steps << " was blocked at (" << m.playerPosition().column
-                << "," << m.playerPosition().row << ")\n";
-      ++g_failures;
-      return;
-    }
+    INFO("step " << i + 1 << " of " << steps);
+    REQUIRE(m.tryMove(d));
   }
 }
 #define MOVE(model, dir, steps)                                                \
-  moveExactlyImpl((model), (dir), (steps), __LINE__)
+  moveExactlyImpl((model), (dir), (steps))
 
 // ---------------------------------------------------------------------------
 // Map dimensions
@@ -429,8 +394,6 @@ static void randomWalk_alwaysObeysTheRules() {
   const Direction directions[4] = {Direction::UP, Direction::DOWN,
                                    Direction::LEFT, Direction::RIGHT};
   std::uint32_t state = 12345u;
-  const int failuresBefore = g_failures;
-
   for (int i = 0; i < 20000; ++i) {
     state = state * 1664525u + 1013904223u; // simple LCG
     const Direction d = directions[(state >> 16) % 4];
@@ -442,14 +405,10 @@ static void randomWalk_alwaysObeysTheRules() {
     const int distance = std::abs(after.column - before.column) +
                          std::abs(after.row - before.row);
 
-    CHECK(m.isInBounds(after.column, after.row));
-    CHECK(m.tileAt(after.column, after.row) == TileType::GROUND);
-    CHECK(distance == (moved ? 1 : 0));
-
-    if (g_failures != failuresBefore) {
-      std::cerr << "  (stopped after step " << i + 1 << ")\n";
-      return; // do not print 20,000 failures
-    }
+    INFO("random walk step " << i + 1);
+    REQUIRE(m.isInBounds(after.column, after.row));
+    REQUIRE(m.tileAt(after.column, after.row) == TileType::GROUND);
+    REQUIRE(distance == (moved ? 1 : 0));
   }
 }
 
@@ -460,31 +419,8 @@ static void randomWalk_alwaysObeysTheRules() {
 // Direction value changes nothing.
 // ---------------------------------------------------------------------------
 
-static const char *directionName(Direction d) {
-  switch (d) {
-  case Direction::UP:
-    return "UP";
-  case Direction::DOWN:
-    return "DOWN";
-  case Direction::LEFT:
-    return "LEFT";
-  case Direction::RIGHT:
-    return "RIGHT";
-  }
-  return "?";
-}
-
-static void checkFacingImpl(const GameModel &m, Direction expected, int line) {
-  const Direction actual = m.facingDirection();
-  if (actual != expected) {
-    std::cerr << "  FAIL line " << line << ": expected facing "
-              << directionName(expected) << " but was " << directionName(actual)
-              << "\n";
-    ++g_failures;
-  }
-}
 #define CHECK_FACING(model, expected)                                          \
-  checkFacingImpl((model), (expected), __LINE__)
+  CHECK((model).facingDirection() == (expected))
 
 static void facing_startsDown() {
   GameModel m;
@@ -616,17 +552,11 @@ static void facing_eachModelHasItsOwnFacing() {
 // clamping (it may be off the map), and it never changes position or facing.
 // ---------------------------------------------------------------------------
 
-static void checkFrontImpl(const GameModel &m, int column, int row, int line) {
-  const TilePosition f = m.tileInFront();
-  if (f.column != column || f.row != row) {
-    std::cerr << "  FAIL line " << line << ": expected tile in front ("
-              << column << "," << row << ") but was (" << f.column << ","
-              << f.row << ")\n";
-    ++g_failures;
-  }
-}
-#define CHECK_FRONT(model, column, row)                                        \
-  checkFrontImpl((model), (column), (row), __LINE__)
+#define CHECK_FRONT(model, expectedColumn, expectedRow)                        \
+  do {                                                                         \
+    CHECK((model).tileInFront().column == (expectedColumn));                   \
+    CHECK((model).tileInFront().row == (expectedRow));                         \
+  } while (false)
 
 // Each direction. Every test checks facing first, so a wrong result is not
 // confused with the player simply not facing where the test thinks it is.
@@ -1172,32 +1102,8 @@ static void planting_eachModelHasItsOwnCrops() {
 static const int kDaysToSprout = 3;
 static const int kDaysToMature = 6; // 3 more days after sprouting
 
-static const char *stageName(CropStage s) {
-  switch (s) {
-  case CropStage::NONE:
-    return "NONE";
-  case CropStage::SEED:
-    return "SEED";
-  case CropStage::SPROUT:
-    return "SPROUT";
-  case CropStage::MATURE:
-    return "MATURE";
-  }
-  return "?";
-}
-
-static void checkStageImpl(const GameModel &m, int column, int row,
-                           CropStage expected, int line) {
-  const CropStage actual = m.cropStageAt(column, row);
-  if (actual != expected) {
-    std::cerr << "  FAIL line " << line << ": crop stage at (" << column << ","
-              << row << ") expected " << stageName(expected) << " but was "
-              << stageName(actual) << "\n";
-    ++g_failures;
-  }
-}
 #define CHECK_STAGE(model, column, row, expected)                              \
-  checkStageImpl((model), (column), (row), (expected), __LINE__)
+  CHECK((model).cropStageAt((column), (row)) == (expected))
 
 static int countWatered(const GameModel &m) {
   int count = 0;
@@ -1867,18 +1773,12 @@ static void harvest_eachModelHasItsOwnCount() {
 }
 
 // ---------------------------------------------------------------------------
-// Runner: prints one line per test so you can see exactly which one failed.
+// Each existing scenario is an independently executed Catch2 section.
 // ---------------------------------------------------------------------------
 
-#define RUN(test)                                                              \
-  do {                                                                         \
-    const int before = g_failures;                                             \
-    test();                                                                    \
-    std::cout << (g_failures == before ? "[ ok ] " : "[FAIL] ") << #test       \
-              << '\n';                                                         \
-  } while (0)
+#define RUN(test) SECTION(#test) { test(); }
 
-int main() {
+TEST_CASE("GameModel behavior") {
   RUN(mapDimensionsAre20By15);
 
   RUN(isInBounds_cornersAreInside);
@@ -2033,10 +1933,4 @@ int main() {
 
   RUN(randomWalk_alwaysObeysTheRules);
 
-  if (g_failures == 0) {
-    std::cout << "\nAll tests passed\n";
-    return 0;
-  }
-  std::cout << "\n" << g_failures << " check(s) failed\n";
-  return 1;
 }

@@ -39,6 +39,16 @@ target_link_libraries(farmstead PRIVATE SDL3::SDL3)
 include(CTest)
 
 if(BUILD_TESTING)
+  include(FetchContent)
+  FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG v3.8.1
+    GIT_SHALLOW TRUE
+  )
+  FetchContent_MakeAvailable(Catch2)
+  list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+  include(Catch)
 
   # GameModel tests
   add_executable(
@@ -50,6 +60,7 @@ if(BUILD_TESTING)
     farmstead-tests
     PRIVATE
     farmstead-core
+    Catch2::Catch2WithMain
   )
 
   target_compile_features(farmstead-tests PRIVATE cxx_std_20)
@@ -58,10 +69,7 @@ if(BUILD_TESTING)
     CXX_EXTENSIONS OFF
   )
 
-  add_test(
-    NAME game-model-tests
-    COMMAND farmstead-tests
-  )
+  catch_discover_tests(farmstead-tests)
 
  # Crop tests
   add_executable(
@@ -71,7 +79,7 @@ if(BUILD_TESTING)
 
   target_link_libraries(
     crop-tests
-    PRIVATE farmstead-core
+    PRIVATE farmstead-core Catch2::Catch2WithMain
   )
 
   target_compile_features(crop-tests PRIVATE cxx_std_20)
@@ -80,9 +88,6 @@ if(BUILD_TESTING)
     CXX_EXTENSIONS OFF
   )
 
-  add_test(
-    NAME crop-tests
-    COMMAND crop-tests
-  )
+  catch_discover_tests(crop-tests)
 
 endif()

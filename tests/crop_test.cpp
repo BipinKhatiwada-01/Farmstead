@@ -1,27 +1,8 @@
 #include "../include/farmstead/Crop.hpp"
 
-#include <iostream>
+#include <catch2/catch_all.hpp>
 
 using namespace farmstead;
-
-static int g_failures = 0;
-
-#define CHECK(condition)                                                       \
-  do {                                                                         \
-    if (!(condition)) {                                                        \
-      ++g_failures;                                                            \
-      std::cerr << "  [FAIL] " << #condition << " at line " << __LINE__        \
-                << '\n';                                                       \
-    }                                                                          \
-  } while (0)
-
-#define RUN(test)                                                              \
-  do {                                                                         \
-    const int before = g_failures;                                             \
-    test();                                                                    \
-    std::cout << (g_failures == before ? "[ ok ] " : "[FAIL] ") << #test       \
-              << '\n';                                                         \
-  } while (0)
 
 static void initialState_isSeedAndNotWatered() {
   Crop crop;
@@ -89,19 +70,12 @@ static void growth_missedDayPreservesProgress() {
   CHECK(crop.stage() == CropStage::SPROUT);
 }
 
-int main() {
+TEST_CASE("Crop behavior") {
+#define RUN(test) SECTION(#test) { test(); }
   RUN(initialState_isSeedAndNotWatered);
   RUN(watering_succeedsOncePerDay);
   RUN(watering_resetsAfterAdvanceDay);
   RUN(growth_threePointsBecomeSprout);
   RUN(growth_sixPointsBecomeMature);
   RUN(growth_missedDayPreservesProgress);
-
-  if (g_failures == 0) {
-    std::cout << "\nAll Crop tests passed\n";
-    return 0;
-  }
-
-  std::cout << "\n" << g_failures << " check(s) failed\n";
-  return 1;
 }
