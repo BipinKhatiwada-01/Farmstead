@@ -71,7 +71,8 @@ static void growth_missedDayPreservesProgress() {
 }
 
 TEST_CASE("Crop behavior") {
-#define RUN(test) SECTION(#test) { test(); }
+#define RUN(test)                                                              \
+  SECTION(#test) { test(); }
   RUN(initialState_isSeedAndNotWatered);
   RUN(watering_succeedsOncePerDay);
   RUN(watering_resetsAfterAdvanceDay);

@@ -8,6 +8,7 @@ add_library(
   farmstead-core
   src/game_model.cpp
   src/Crop.cpp
+  src/Inventory.cpp
 )
 
 target_include_directories(
@@ -28,6 +29,8 @@ target_link_libraries(
 )
 
 target_compile_features(farmstead-core PUBLIC cxx_std_20)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set_target_properties(farmstead-core PROPERTIES
     CXX_EXTENSIONS OFF
@@ -89,5 +92,25 @@ if(BUILD_TESTING)
   )
 
   catch_discover_tests(crop-tests)
+
+
+  # Inventory tests
+  add_executable(
+    inventory-tests
+    tests/inventory_test.cpp
+  )
+
+  target_link_libraries(
+    inventory-tests
+    PRIVATE farmstead-core Catch2::Catch2WithMain
+  )
+
+  target_compile_features(inventory-tests PRIVATE cxx_std_20)
+
+  set_target_properties(inventory-tests PROPERTIES
+    CXX_EXTENSIONS OFF
+  )
+
+  catch_discover_tests(inventory-tests)
 
 endif()
