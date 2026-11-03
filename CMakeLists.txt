@@ -10,6 +10,7 @@ add_library(
   src/Crop.cpp
   src/Inventory.cpp
   src/Economy.cpp
+  src/Progression.cpp
 )
 
 target_include_directories(
@@ -133,5 +134,24 @@ if(BUILD_TESTING)
   )
 
   catch_discover_tests(economy-tests)
+
+  # Progression tests
+  add_executable(
+    progression-tests
+    tests/progression_test.cpp
+  )
+
+  target_link_libraries(
+    progression-tests
+    PRIVATE farmstead-core Catch2::Catch2WithMain
+  )
+
+  target_compile_features(progression-tests PRIVATE cxx_std_20)
+
+  set_target_properties(progression-tests PROPERTIES
+    CXX_EXTENSIONS OFF
+  )
+
+  catch_discover_tests(progression-tests)
 
 endif()
