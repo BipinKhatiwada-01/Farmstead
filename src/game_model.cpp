@@ -42,6 +42,8 @@ GameModel::GameModel() : player(kStartPosition), facing(Direction::DOWN) {
       }
     }
   }
+  tiles[indexOf(kMarketPosition.column, kMarketPosition.row)] =
+      TileType::MARKET;
 }
 
 std::size_t GameModel::indexOf(int column, int row) const {
@@ -262,6 +264,8 @@ bool GameModel::objectiveCompleted() const {
 }
 
 bool GameModel::trySellProduce(int quantity) {
+  if (!isFacingMarket())
+    return false;
 
   if (inventory.produceCount() < quantity || quantity <= 0) {
     return false;
@@ -281,6 +285,10 @@ bool GameModel::trySellProduce(int quantity) {
   progression.onCoinsEarned(saleValue);
 
   return true;
+}
+
+bool GameModel::isFacingMarket() const {
+  return tileInFront() == kMarketPosition;
 }
 
 } // namespace farmstead

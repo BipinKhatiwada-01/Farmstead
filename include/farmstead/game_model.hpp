@@ -33,6 +33,7 @@ namespace farmstead {
 enum class TileType {
   GROUND,   ///< Walkable.
   OBSTACLE, ///< Blocks movement. Also what tileAt() reports off the map.
+  MARKET,
 };
 
 /// A direction for a one-tile move. UP/DOWN change the row, LEFT/RIGHT the
@@ -162,6 +163,11 @@ public:
   int objectiveTarget() const;
   bool objectiveCompleted() const;
 
+  // market
+  bool isFacingMarket() const;
+
+  static constexpr TilePosition kMarketPosition{10, 5};
+
 private:
   // Flat index of a tile, row-major: row * kMapWidth + column.
   // Precondition: (column, row) is in bounds; callers check isInBounds first.
@@ -186,9 +192,6 @@ private:
   Inventory inventory;
   Economy economy;
   Progression progression;
-
-  // Market Location
-  TilePosition market{};
 };
 
 }; // namespace farmstead
