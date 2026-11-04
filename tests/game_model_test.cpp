@@ -30,6 +30,7 @@
 //   - (14,8) is an isolated obstacle: all four neighbours are ground
 
 #include "../include/farmstead/game_model.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include <catch2/catch_all.hpp>
 
@@ -59,8 +60,7 @@ static void moveExactlyImpl(GameModel &m, Direction d, int steps) {
     REQUIRE(m.tryMove(d));
   }
 }
-#define MOVE(model, dir, steps)                                                \
-  moveExactlyImpl((model), (dir), (steps))
+#define MOVE(model, dir, steps) moveExactlyImpl((model), (dir), (steps))
 
 // ---------------------------------------------------------------------------
 // Map dimensions
@@ -1776,7 +1776,8 @@ static void harvest_eachModelHasItsOwnCount() {
 // Each existing scenario is an independently executed Catch2 section.
 // ---------------------------------------------------------------------------
 
-#define RUN(test) SECTION(#test) { test(); }
+#define RUN(test)                                                              \
+  SECTION(#test) { test(); }
 
 TEST_CASE("GameModel behavior") {
   RUN(mapDimensionsAre20By15);
@@ -1932,5 +1933,4 @@ TEST_CASE("GameModel behavior") {
   RUN(harvest_eachModelHasItsOwnCount);
 
   RUN(randomWalk_alwaysObeysTheRules);
-
 }
