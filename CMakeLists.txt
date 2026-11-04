@@ -87,6 +87,28 @@ if(BUILD_TESTING)
 
     catch_discover_tests(farmstead-tests)
 
+
+    # economy_integration tests
+    add_executable(
+        economy-integration-tests
+        tests/game_model/economy_integration_test.cpp
+    )
+
+    target_link_libraries(
+        economy-integration-tests
+        PRIVATE
+            farmstead-core
+            Catch2::Catch2WithMain
+    )
+
+    target_compile_features(economy-integration-tests PRIVATE cxx_std_20)
+
+    set_target_properties(economy-integration-tests PROPERTIES
+        CXX_EXTENSIONS OFF
+    )
+
+    catch_discover_tests(economy-integration-tests)
+
     # Crop tests
     add_executable(
         crop-tests

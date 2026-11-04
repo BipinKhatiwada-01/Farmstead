@@ -1,82 +1,72 @@
 #include "../include/farmstead/Crop.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include <catch2/catch_all.hpp>
 
 using namespace farmstead;
 
-static void initialState_isSeedAndNotWatered() {
+TEST_CASE("Initial state is seed and not watered") {
   Crop crop;
 
-  CHECK(crop.stage() == CropStage::SEED);
-  CHECK(!crop.isWateredToday());
+  REQUIRE(crop.stage() == CropStage::SEED);
+  REQUIRE(!crop.isWateredToday());
 }
 
-static void watering_succeedsOncePerDay() {
+TEST_CASE("Watering succedes once per day") {
   Crop crop;
 
-  CHECK(crop.tryWater());
-  CHECK(crop.isWateredToday());
+  REQUIRE(crop.tryWater());
+  REQUIRE(crop.isWateredToday());
 
-  CHECK(!crop.tryWater());
+  REQUIRE(!crop.tryWater());
 }
 
-static void watering_resetsAfterAdvanceDay() {
+TEST_CASE("Watering resets after advance day") {
   Crop crop;
 
-  CHECK(crop.tryWater());
+  REQUIRE(crop.tryWater());
   crop.advanceDay();
 
-  CHECK(!crop.isWateredToday());
-  CHECK(crop.tryWater());
+  REQUIRE(!crop.isWateredToday());
+  REQUIRE(crop.tryWater());
 }
 
-static void growth_threePointsBecomeSprout() {
+TEST_CASE("Becomes sprout after 3 growth points") {
   Crop crop;
 
   for (int i = 0; i < 3; ++i) {
-    CHECK(crop.tryWater());
+    REQUIRE(crop.tryWater());
     crop.advanceDay();
   }
 
-  CHECK(crop.stage() == CropStage::SPROUT);
+  REQUIRE(crop.stage() == CropStage::SPROUT);
 }
 
-static void growth_sixPointsBecomeMature() {
+TEST_CASE("Becomes mature after 6 growth points") {
   Crop crop;
 
   for (int i = 0; i < 6; ++i) {
-    CHECK(crop.tryWater());
+    REQUIRE(crop.tryWater());
     crop.advanceDay();
   }
 
-  CHECK(crop.stage() == CropStage::MATURE);
+  REQUIRE(crop.stage() == CropStage::MATURE);
 }
 
-static void growth_missedDayPreservesProgress() {
+TEST_CASE("Missed days preserves progress") {
   Crop crop;
 
   for (int i = 0; i < 2; ++i) {
-    CHECK(crop.tryWater());
+    REQUIRE(crop.tryWater());
     crop.advanceDay();
   }
 
   crop.advanceDay(); // Missed watering day.
 
-  CHECK(crop.stage() == CropStage::SEED);
+  REQUIRE(crop.stage() == CropStage::SEED);
 
-  CHECK(crop.tryWater());
+  REQUIRE(crop.tryWater());
   crop.advanceDay();
 
-  CHECK(crop.stage() == CropStage::SPROUT);
-}
-
-TEST_CASE("Crop behavior") {
-#define RUN(test)                                                              \
-  SECTION(#test) { test(); }
-  RUN(initialState_isSeedAndNotWatered);
-  RUN(watering_succeedsOncePerDay);
-  RUN(watering_resetsAfterAdvanceDay);
-  RUN(growth_threePointsBecomeSprout);
-  RUN(growth_sixPointsBecomeMature);
-  RUN(growth_missedDayPreservesProgress);
+  REQUIRE(crop.stage() == CropStage::SPROUT);
 }

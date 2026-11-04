@@ -42,6 +42,8 @@ GameModel::GameModel() : player(kStartPosition), facing(Direction::DOWN) {
       }
     }
   }
+  tiles[indexOf(kMarketPosition.column, kMarketPosition.row)] =
+      TileType::MARKET;
 }
 
 std::size_t GameModel::indexOf(int column, int row) const {
@@ -241,11 +243,52 @@ bool GameModel::tryHarvest(int column, int row) {
     return false;
   }
 
+  if (!inventory.addProduce(1)) {
+    return false;
+  }
+
   crops[index].reset();
-  productCount++;
   return true;
 }
 
-int GameModel::produceCount() const { return productCount; }
+int GameModel::produceCount() const { return inventory.produceCount(); }
+
+int GameModel::coins() const { return economy.coins(); }
+
+int GameModel::coinsEarned() const { return progression.coinsEarned(); }
+
+int GameModel::objectiveTarget() const { return progression.objectiveTarget(); }
+
+bool GameModel::objectiveCompleted() const {
+  return progression.objectiveCompleted();
+}
+
+bool GameModel::trySellProduce(int quantity) {
+  if (!isFacingMarket())
+    return false;
+
+  if (inventory.produceCount() < quantity || quantity <= 0) {
+    return false;
+  }
+
+  const int saleValue = economy.calculateSaleValue(quantity);
+
+  if (saleValue <= 0) {
+    return false;
+  }
+
+  if (!economy.addCoins(saleValue)) {
+    return false;
+  }
+
+  inventory.removeProduce(quantity);
+  progression.onCoinsEarned(saleValue);
+
+  return true;
+}
+
+bool GameModel::isFacingMarket() const {
+  return tileInFront() == kMarketPosition;
+}
 
 } // namespace farmstead

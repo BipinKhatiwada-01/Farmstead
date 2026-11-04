@@ -20,6 +20,9 @@
 //             at playerPosition(). The model is only read while drawing.
 
 #include "Crop.hpp"
+#include "farmstead/Economy.hpp"
+#include "farmstead/Inventory.hpp"
+#include "farmstead/Progression.hpp"
 #include <array>
 #include <cstddef>
 #include <optional>
@@ -30,6 +33,7 @@ namespace farmstead {
 enum class TileType {
   GROUND,   ///< Walkable.
   OBSTACLE, ///< Blocks movement. Also what tileAt() reports off the map.
+  MARKET,
 };
 
 /// A direction for a one-tile move. UP/DOWN change the row, LEFT/RIGHT the
@@ -143,7 +147,26 @@ public:
 
   bool tryHarvest(int column, int row);
 
+  // Inventory
   int produceCount() const;
+
+  // Attempts to sell the requested quantity of produce.
+  // Returns false if the player is not at the market,
+  // the quantity is invalid, or the transaction cannot be completed.
+  bool trySellProduce(int quantity);
+
+  // Economy
+  int coins() const;
+
+  // Progression
+  int coinsEarned() const;
+  int objectiveTarget() const;
+  bool objectiveCompleted() const;
+
+  // market
+  bool isFacingMarket() const;
+
+  static constexpr TilePosition kMarketPosition{10, 5};
 
 private:
   // Flat index of a tile, row-major: row * kMapWidth + column.
@@ -165,8 +188,10 @@ private:
   // a tile without a planted crop.
   std::array<std::optional<Crop>, kMapWidth * kMapHeight> crops{};
 
-  // for now with no inventory
-  int productCount = 0;
+  // New gameplay systems
+  Inventory inventory;
+  Economy economy;
+  Progression progression;
 };
 
 }; // namespace farmstead

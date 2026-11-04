@@ -30,6 +30,7 @@
 //   - (14,8) is an isolated obstacle: all four neighbours are ground
 
 #include "../include/farmstead/game_model.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include <catch2/catch_all.hpp>
 
@@ -42,14 +43,14 @@ using namespace farmstead;
 // Test helpers
 // ---------------------------------------------------------------------------
 
-#define CHECK_POS(model, expectedColumn, expectedRow)                          \
+#define REQUIRE_POS(model, expectedColumn, expectedRow)                        \
   do {                                                                         \
-    CHECK((model).playerPosition().column == (expectedColumn));                \
-    CHECK((model).playerPosition().row == (expectedRow));                      \
+    REQUIRE((model).playerPosition().column == (expectedColumn));              \
+    REQUIRE((model).playerPosition().row == (expectedRow));                    \
   } while (false)
 
-#define CHECK_TILE(model, column, row, expected)                               \
-  CHECK((model).tileAt((column), (row)) == (expected))
+#define REQUIRE_TILE(model, column, row, expected)                             \
+  REQUIRE((model).tileAt((column), (row)) == (expected))
 
 // Moves exactly `steps` times. Every step MUST succeed; if one is blocked the
 // failure is reported at the caller's line, with the position where it stopped.
@@ -59,62 +60,61 @@ static void moveExactlyImpl(GameModel &m, Direction d, int steps) {
     REQUIRE(m.tryMove(d));
   }
 }
-#define MOVE(model, dir, steps)                                                \
-  moveExactlyImpl((model), (dir), (steps))
+#define MOVE(model, dir, steps) moveExactlyImpl((model), (dir), (steps))
 
 // ---------------------------------------------------------------------------
 // Map dimensions
 // ---------------------------------------------------------------------------
 
-static void mapDimensionsAre20By15() {
+TEST_CASE("mapDimensionsAre20By15") {
   GameModel m;
-  CHECK(m.mapWidth() == 20);
-  CHECK(m.mapHeight() == 15);
-  CHECK(m.mapWidth() == GameModel::kMapWidth);
-  CHECK(m.mapHeight() == GameModel::kMapHeight);
+  REQUIRE(m.mapWidth() == 20);
+  REQUIRE(m.mapHeight() == 15);
+  REQUIRE(m.mapWidth() == GameModel::kMapWidth);
+  REQUIRE(m.mapHeight() == GameModel::kMapHeight);
 }
 
 // ---------------------------------------------------------------------------
 // isInBounds
 // ---------------------------------------------------------------------------
 
-static void isInBounds_cornersAreInside() {
+TEST_CASE("isInBounds_cornersAreInside") {
   GameModel m;
-  CHECK(m.isInBounds(0, 0));
-  CHECK(m.isInBounds(19, 0));
-  CHECK(m.isInBounds(0, 14));
-  CHECK(m.isInBounds(19, 14));
+  REQUIRE(m.isInBounds(0, 0));
+  REQUIRE(m.isInBounds(19, 0));
+  REQUIRE(m.isInBounds(0, 14));
+  REQUIRE(m.isInBounds(19, 14));
 }
 
-static void isInBounds_negativeCoordinatesAreOutside() {
+TEST_CASE("isInBounds_negativeCoordinatesAreOutside") {
   GameModel m;
-  CHECK(!m.isInBounds(-1, 0));
-  CHECK(!m.isInBounds(0, -1));
-  CHECK(!m.isInBounds(-1, -1));
-  CHECK(!m.isInBounds(-100, 5));
+  REQUIRE(!m.isInBounds(-1, 0));
+  REQUIRE(!m.isInBounds(0, -1));
+  REQUIRE(!m.isInBounds(-1, -1));
+  REQUIRE(!m.isInBounds(-100, 5));
 }
 
-static void isInBounds_pastTheFarEdgeIsOutside() {
+TEST_CASE("isInBounds_pastTheFarEdgeIsOutside") {
   GameModel m;
-  CHECK(!m.isInBounds(20, 0));
-  CHECK(!m.isInBounds(0, 15));
-  CHECK(!m.isInBounds(20, 15));
-  CHECK(!m.isInBounds(100, 5));
+  REQUIRE(!m.isInBounds(20, 0));
+  REQUIRE(!m.isInBounds(0, 15));
+  REQUIRE(!m.isInBounds(20, 15));
+  REQUIRE(!m.isInBounds(100, 5));
 }
 
 // ---------------------------------------------------------------------------
 // tileAt
 // ---------------------------------------------------------------------------
 
-static void tileAt_openGroundIsGround() {
+TEST_CASE("tileAt_openGroundIsGround") {
   GameModel m;
-  CHECK_TILE(m, 0, 0, TileType::GROUND);
-  CHECK_TILE(m, 1, 1, TileType::GROUND);
-  CHECK_TILE(m, 10, 5, TileType::GROUND);
-  CHECK_TILE(m, 19, 14, TileType::GROUND);
+  REQUIRE_TILE(m, 0, 0, TileType::GROUND);
+  REQUIRE_TILE(m, 1, 1, TileType::GROUND);
+  REQUIRE_TILE(m, 10, 5, TileType::GROUND);
+  REQUIRE_TILE(m, 19, 14, TileType::GROUND);
 }
 
-static void tileAt_wallTilesAreObstacles() {
+TEST_CASE("tileAt_wallTilesAreObstacles") {
   GameModel m;
   const TilePosition walls[] = {
       {5, 1},  {6, 1},   {7, 1},   {5, 2},   {5, 3},   {13, 3},
@@ -123,23 +123,23 @@ static void tileAt_wallTilesAreObstacles() {
       {9, 10}, {10, 11}, {10, 12}, {16, 12}, {17, 12},
   };
   for (const TilePosition &w : walls) {
-    CHECK_TILE(m, w.column, w.row, TileType::OBSTACLE);
+    REQUIRE_TILE(m, w.column, w.row, TileType::OBSTACLE);
   }
 }
 
-static void tileAt_tilesBesideWallsAreGround() {
+TEST_CASE("tileAt_tilesBesideWallsAreGround") {
   GameModel m;
-  CHECK_TILE(m, 4, 1, TileType::GROUND);  // left of the row-1 wall
-  CHECK_TILE(m, 8, 1, TileType::GROUND);  // right of the row-1 wall
-  CHECK_TILE(m, 6, 2, TileType::GROUND);  // inside the "C" shape
-  CHECK_TILE(m, 14, 7, TileType::GROUND); // above isolated wall (14,8)
-  CHECK_TILE(m, 14, 9, TileType::GROUND); // below it
-  CHECK_TILE(m, 13, 8, TileType::GROUND); // left of it
-  CHECK_TILE(m, 15, 8, TileType::GROUND); // right of it
+  REQUIRE_TILE(m, 4, 1, TileType::GROUND);  // left of the row-1 wall
+  REQUIRE_TILE(m, 8, 1, TileType::GROUND);  // right of the row-1 wall
+  REQUIRE_TILE(m, 6, 2, TileType::GROUND);  // inside the "C" shape
+  REQUIRE_TILE(m, 14, 7, TileType::GROUND); // above isolated wall (14,8)
+  REQUIRE_TILE(m, 14, 9, TileType::GROUND); // below it
+  REQUIRE_TILE(m, 13, 8, TileType::GROUND); // left of it
+  REQUIRE_TILE(m, 15, 8, TileType::GROUND); // right of it
 }
 
 // Together with the wall list above, this proves there are no EXTRA obstacles.
-static void tileAt_totalObstacleCountIs23() {
+TEST_CASE("tileAt_totalObstacleCountIs23") {
   GameModel m;
   int obstacles = 0;
   for (int row = 0; row < m.mapHeight(); ++row) {
@@ -149,31 +149,31 @@ static void tileAt_totalObstacleCountIs23() {
       }
     }
   }
-  CHECK(obstacles == 23);
+  REQUIRE(obstacles == 23);
 }
 
-static void tileAt_outOfBoundsIsObstacle() {
+TEST_CASE("tileAt_outOfBoundsIsObstacle") {
   GameModel m;
-  CHECK_TILE(m, -1, 0, TileType::OBSTACLE);
-  CHECK_TILE(m, 0, -1, TileType::OBSTACLE);
-  CHECK_TILE(m, -1, -1, TileType::OBSTACLE);
-  CHECK_TILE(m, GameModel::kMapWidth, 0, TileType::OBSTACLE);
-  CHECK_TILE(m, 0, GameModel::kMapHeight, TileType::OBSTACLE);
-  CHECK_TILE(m, GameModel::kMapWidth, GameModel::kMapHeight,
-             TileType::OBSTACLE);
+  REQUIRE_TILE(m, -1, 0, TileType::OBSTACLE);
+  REQUIRE_TILE(m, 0, -1, TileType::OBSTACLE);
+  REQUIRE_TILE(m, -1, -1, TileType::OBSTACLE);
+  REQUIRE_TILE(m, GameModel::kMapWidth, 0, TileType::OBSTACLE);
+  REQUIRE_TILE(m, 0, GameModel::kMapHeight, TileType::OBSTACLE);
+  REQUIRE_TILE(m, GameModel::kMapWidth, GameModel::kMapHeight,
+               TileType::OBSTACLE);
 }
 
 // The edge tests below rely on the border being walkable, otherwise the
 // "map edge" rule could never be reached. This documents that on purpose.
-static void tileAt_borderIsAllGround() {
+TEST_CASE("tileAt_borderIsAllGround") {
   GameModel m;
   for (int column = 0; column < GameModel::kMapWidth; ++column) {
-    CHECK_TILE(m, column, 0, TileType::GROUND);
-    CHECK_TILE(m, column, GameModel::kMapHeight - 1, TileType::GROUND);
+    REQUIRE_TILE(m, column, 0, TileType::GROUND);
+    REQUIRE_TILE(m, column, GameModel::kMapHeight - 1, TileType::GROUND);
   }
   for (int row = 0; row < GameModel::kMapHeight; ++row) {
-    CHECK_TILE(m, 0, row, TileType::GROUND);
-    CHECK_TILE(m, GameModel::kMapWidth - 1, row, TileType::GROUND);
+    REQUIRE_TILE(m, 0, row, TileType::GROUND);
+    REQUIRE_TILE(m, GameModel::kMapWidth - 1, row, TileType::GROUND);
   }
 }
 
@@ -181,24 +181,24 @@ static void tileAt_borderIsAllGround() {
 // Start state
 // ---------------------------------------------------------------------------
 
-static void start_positionIsColumn1Row1() {
+TEST_CASE("start_positionIsColumn1Row1") {
   GameModel m;
-  CHECK_POS(m, 1, 1);
+  REQUIRE_POS(m, 1, 1);
 }
 
-static void start_isInBoundsAndOnGround() {
+TEST_CASE("start_isInBoundsAndOnGround") {
   GameModel m;
   const TilePosition p = m.playerPosition();
-  CHECK(m.isInBounds(p.column, p.row));
-  CHECK_TILE(m, p.column, p.row, TileType::GROUND);
+  REQUIRE(m.isInBounds(p.column, p.row));
+  REQUIRE_TILE(m, p.column, p.row, TileType::GROUND);
 }
 
-static void start_eachModelHasItsOwnState() {
+TEST_CASE("start_eachModelHasItsOwnState") {
   GameModel a;
   GameModel b;
-  CHECK(a.tryMove(Direction::RIGHT));
-  CHECK_POS(a, 2, 1);
-  CHECK_POS(b, 1, 1); // b must not be affected by a
+  REQUIRE(a.tryMove(Direction::RIGHT));
+  REQUIRE_POS(a, 2, 1);
+  REQUIRE_POS(b, 1, 1); // b must not be affected by a
 }
 
 // ---------------------------------------------------------------------------
@@ -206,180 +206,180 @@ static void start_eachModelHasItsOwnState() {
 // reported against exactly the direction that is wrong)
 // ---------------------------------------------------------------------------
 
-static void move_upDecreasesRowByOne() {
+TEST_CASE("move_upDecreasesRowByOne") {
   GameModel m;
-  CHECK(m.tryMove(Direction::UP));
-  CHECK_POS(m, 1, 0);
+  REQUIRE(m.tryMove(Direction::UP));
+  REQUIRE_POS(m, 1, 0);
 }
 
-static void move_downIncreasesRowByOne() {
+TEST_CASE("move_downIncreasesRowByOne") {
   GameModel m;
-  CHECK(m.tryMove(Direction::DOWN));
-  CHECK_POS(m, 1, 2);
+  REQUIRE(m.tryMove(Direction::DOWN));
+  REQUIRE_POS(m, 1, 2);
 }
 
-static void move_leftDecreasesColumnByOne() {
+TEST_CASE("move_leftDecreasesColumnByOne") {
   GameModel m;
-  CHECK(m.tryMove(Direction::LEFT));
-  CHECK_POS(m, 0, 1);
+  REQUIRE(m.tryMove(Direction::LEFT));
+  REQUIRE_POS(m, 0, 1);
 }
 
-static void move_rightIncreasesColumnByOne() {
+TEST_CASE("move_rightIncreasesColumnByOne") {
   GameModel m;
-  CHECK(m.tryMove(Direction::RIGHT));
-  CHECK_POS(m, 2, 1);
+  REQUIRE(m.tryMove(Direction::RIGHT));
+  REQUIRE_POS(m, 2, 1);
 }
 
-static void move_oppositeMovesCancelOut() {
+TEST_CASE("move_oppositeMovesCancelOut") {
   GameModel m;
-  CHECK(m.tryMove(Direction::RIGHT));
-  CHECK(m.tryMove(Direction::LEFT));
-  CHECK_POS(m, 1, 1);
-  CHECK(m.tryMove(Direction::DOWN));
-  CHECK(m.tryMove(Direction::UP));
-  CHECK_POS(m, 1, 1);
+  REQUIRE(m.tryMove(Direction::RIGHT));
+  REQUIRE(m.tryMove(Direction::LEFT));
+  REQUIRE_POS(m, 1, 1);
+  REQUIRE(m.tryMove(Direction::DOWN));
+  REQUIRE(m.tryMove(Direction::UP));
+  REQUIRE_POS(m, 1, 1);
 }
 
-static void move_squarePathReturnsToStart() {
+TEST_CASE("move_squarePathReturnsToStart") {
   GameModel m;
-  CHECK(m.tryMove(Direction::RIGHT)); // (2,1)
-  CHECK(m.tryMove(Direction::DOWN));  // (2,2)
-  CHECK(m.tryMove(Direction::LEFT));  // (1,2)
-  CHECK(m.tryMove(Direction::UP));    // (1,1)
-  CHECK_POS(m, 1, 1);
+  REQUIRE(m.tryMove(Direction::RIGHT)); // (2,1)
+  REQUIRE(m.tryMove(Direction::DOWN));  // (2,2)
+  REQUIRE(m.tryMove(Direction::LEFT));  // (1,2)
+  REQUIRE(m.tryMove(Direction::UP));    // (1,1)
+  REQUIRE_POS(m, 1, 1);
 }
 
-static void move_longWalkAcrossOpenGroundWorks() {
+TEST_CASE("move_longWalkAcrossOpenGroundWorks") {
   GameModel m;
   MOVE(m, Direction::DOWN, 4);   // (1,5)   column 1 is clear
   MOVE(m, Direction::RIGHT, 18); // (19,5)  row 5 is clear
-  CHECK_POS(m, 19, 5);
+  REQUIRE_POS(m, 19, 5);
 }
 
 // ---------------------------------------------------------------------------
 // tryMove: obstacles
 // ---------------------------------------------------------------------------
 
-static void obstacle_blocksMovingRight() {
+TEST_CASE("obstacle_blocksMovingRight") {
   GameModel m;
   MOVE(m, Direction::RIGHT, 3); // (4,1); next tile (5,1) is a wall
-  CHECK_POS(m, 4, 1);
-  CHECK(!m.tryMove(Direction::RIGHT));
-  CHECK_POS(m, 4, 1); // unchanged
+  REQUIRE_POS(m, 4, 1);
+  REQUIRE(!m.tryMove(Direction::RIGHT));
+  REQUIRE_POS(m, 4, 1); // unchanged
 }
 
-static void obstacle_blocksMovingDown() {
+TEST_CASE("obstacle_blocksMovingDown") {
   GameModel m;
   MOVE(m, Direction::DOWN, 4);   // (1,5)
   MOVE(m, Direction::RIGHT, 13); // (14,5)
   MOVE(m, Direction::DOWN, 2);   // (14,7); next tile (14,8) is a wall
-  CHECK_POS(m, 14, 7);
-  CHECK(!m.tryMove(Direction::DOWN));
-  CHECK_POS(m, 14, 7);
+  REQUIRE_POS(m, 14, 7);
+  REQUIRE(!m.tryMove(Direction::DOWN));
+  REQUIRE_POS(m, 14, 7);
 }
 
-static void obstacle_blocksMovingUp() {
+TEST_CASE("obstacle_blocksMovingUp") {
   GameModel m;
   MOVE(m, Direction::DOWN, 8);   // (1,9)
   MOVE(m, Direction::RIGHT, 13); // (14,9); tile above (14,8) is a wall
-  CHECK_POS(m, 14, 9);
-  CHECK(!m.tryMove(Direction::UP));
-  CHECK_POS(m, 14, 9);
+  REQUIRE_POS(m, 14, 9);
+  REQUIRE(!m.tryMove(Direction::UP));
+  REQUIRE_POS(m, 14, 9);
 }
 
-static void obstacle_blocksMovingLeft() {
+TEST_CASE("obstacle_blocksMovingLeft") {
   GameModel m;
   MOVE(m, Direction::DOWN, 8);   // (1,9)
   MOVE(m, Direction::RIGHT, 14); // (15,9)
   MOVE(m, Direction::UP, 1);     // (15,8); tile to the left (14,8) is a wall
-  CHECK_POS(m, 15, 8);
-  CHECK(!m.tryMove(Direction::LEFT));
-  CHECK_POS(m, 15, 8);
+  REQUIRE_POS(m, 15, 8);
+  REQUIRE(!m.tryMove(Direction::LEFT));
+  REQUIRE_POS(m, 15, 8);
 }
 
-static void obstacle_blockedFromTheLeftSide() {
+TEST_CASE("obstacle_blockedFromTheLeftSide") {
   GameModel m;
   MOVE(m, Direction::DOWN, 8);   // (1,9)
   MOVE(m, Direction::RIGHT, 12); // (13,9)
   MOVE(m, Direction::UP, 1);     // (13,8); tile to the right (14,8) is a wall
-  CHECK_POS(m, 13, 8);
-  CHECK(!m.tryMove(Direction::RIGHT));
-  CHECK_POS(m, 13, 8);
+  REQUIRE_POS(m, 13, 8);
+  REQUIRE(!m.tryMove(Direction::RIGHT));
+  REQUIRE_POS(m, 13, 8);
 }
 
-static void obstacle_repeatedBlockedMovesNeverChangePosition() {
+TEST_CASE("obstacle_repeatedBlockedMovesNeverChangePosition") {
   GameModel m;
   MOVE(m, Direction::RIGHT, 3); // (4,1)
   for (int i = 0; i < 5; ++i) {
-    CHECK(!m.tryMove(Direction::RIGHT));
-    CHECK_POS(m, 4, 1);
+    REQUIRE(!m.tryMove(Direction::RIGHT));
+    REQUIRE_POS(m, 4, 1);
   }
 }
 
-static void obstacle_canMoveAwayAfterBeingBlocked() {
+TEST_CASE("obstacle_canMoveAwayAfterBeingBlocked") {
   GameModel m;
   MOVE(m, Direction::RIGHT, 3); // (4,1)
-  CHECK(!m.tryMove(Direction::RIGHT));
-  CHECK(m.tryMove(Direction::DOWN)); // a blocked move must not "stick"
-  CHECK_POS(m, 4, 2);
+  REQUIRE(!m.tryMove(Direction::RIGHT));
+  REQUIRE(m.tryMove(Direction::DOWN)); // a blocked move must not "stick"
+  REQUIRE_POS(m, 4, 2);
 }
 
 // ---------------------------------------------------------------------------
 // tryMove: map edges
 // ---------------------------------------------------------------------------
 
-static void edge_topBlocksMovingUp() {
+TEST_CASE("edge_topBlocksMovingUp") {
   GameModel m;
   MOVE(m, Direction::UP, 1); // (1,0)
-  CHECK_POS(m, 1, 0);
-  CHECK(!m.tryMove(Direction::UP)); // would be row -1
-  CHECK_POS(m, 1, 0);
+  REQUIRE_POS(m, 1, 0);
+  REQUIRE(!m.tryMove(Direction::UP)); // would be row -1
+  REQUIRE_POS(m, 1, 0);
 }
 
-static void edge_leftBlocksMovingLeft() {
+TEST_CASE("edge_leftBlocksMovingLeft") {
   GameModel m;
   MOVE(m, Direction::LEFT, 1); // (0,1)
-  CHECK_POS(m, 0, 1);
-  CHECK(!m.tryMove(Direction::LEFT)); // would be column -1
-  CHECK_POS(m, 0, 1);
+  REQUIRE_POS(m, 0, 1);
+  REQUIRE(!m.tryMove(Direction::LEFT)); // would be column -1
+  REQUIRE_POS(m, 0, 1);
 }
 
-static void edge_bottomBlocksMovingDown() {
+TEST_CASE("edge_bottomBlocksMovingDown") {
   GameModel m;
   MOVE(m, Direction::DOWN, 13); // (1,14); column 1 is clear
-  CHECK_POS(m, 1, 14);
-  CHECK(!m.tryMove(Direction::DOWN)); // would be row 15
-  CHECK_POS(m, 1, 14);
+  REQUIRE_POS(m, 1, 14);
+  REQUIRE(!m.tryMove(Direction::DOWN)); // would be row 15
+  REQUIRE_POS(m, 1, 14);
 }
 
-static void edge_rightBlocksMovingRight() {
+TEST_CASE("edge_rightBlocksMovingRight") {
   GameModel m;
   MOVE(m, Direction::UP, 1);     // (1,0)
   MOVE(m, Direction::RIGHT, 18); // (19,0); row 0 is clear
-  CHECK_POS(m, 19, 0);
-  CHECK(!m.tryMove(Direction::RIGHT)); // would be column 20
-  CHECK_POS(m, 19, 0);
+  REQUIRE_POS(m, 19, 0);
+  REQUIRE(!m.tryMove(Direction::RIGHT)); // would be column 20
+  REQUIRE_POS(m, 19, 0);
 }
 
-static void corner_topLeftBlocksUpAndLeft() {
+TEST_CASE("corner_topLeftBlocksUpAndLeft") {
   GameModel m;
   MOVE(m, Direction::UP, 1);
   MOVE(m, Direction::LEFT, 1);
-  CHECK_POS(m, 0, 0);
-  CHECK(!m.tryMove(Direction::UP));
-  CHECK(!m.tryMove(Direction::LEFT));
-  CHECK_POS(m, 0, 0);
+  REQUIRE_POS(m, 0, 0);
+  REQUIRE(!m.tryMove(Direction::UP));
+  REQUIRE(!m.tryMove(Direction::LEFT));
+  REQUIRE_POS(m, 0, 0);
 }
 
-static void corner_bottomRightBlocksDownAndRight() {
+TEST_CASE("corner_bottomRightBlocksDownAndRight") {
   GameModel m;
   MOVE(m, Direction::UP, 1);     // (1,0)
   MOVE(m, Direction::RIGHT, 18); // (19,0)
   MOVE(m, Direction::DOWN, 14);  // (19,14); column 19 is clear
-  CHECK_POS(m, 19, 14);
-  CHECK(!m.tryMove(Direction::DOWN));
-  CHECK(!m.tryMove(Direction::RIGHT));
-  CHECK_POS(m, 19, 14);
+  REQUIRE_POS(m, 19, 14);
+  REQUIRE(!m.tryMove(Direction::DOWN));
+  REQUIRE(!m.tryMove(Direction::RIGHT));
+  REQUIRE_POS(m, 19, 14);
 }
 
 // ---------------------------------------------------------------------------
@@ -389,7 +389,7 @@ static void corner_bottomRightBlocksDownAndRight() {
 // position by exactly one tile; a rejected move changed nothing.
 // ---------------------------------------------------------------------------
 
-static void randomWalk_alwaysObeysTheRules() {
+TEST_CASE("randomWalk_alwaysObeysTheRules") {
   GameModel m;
   const Direction directions[4] = {Direction::UP, Direction::DOWN,
                                    Direction::LEFT, Direction::RIGHT};
@@ -419,130 +419,130 @@ static void randomWalk_alwaysObeysTheRules() {
 // Direction value changes nothing.
 // ---------------------------------------------------------------------------
 
-#define CHECK_FACING(model, expected)                                          \
-  CHECK((model).facingDirection() == (expected))
+#define REQUIRE_FACING(model, expected)                                        \
+  REQUIRE((model).facingDirection() == (expected))
 
-static void facing_startsDown() {
+TEST_CASE("facing_startsDown") {
   GameModel m;
-  CHECK_FACING(m, Direction::DOWN);
+  REQUIRE_FACING(m, Direction::DOWN);
 }
 
 // Successful moves. Each one checks position too, so we know it really moved.
 
-static void facing_successfulMoveUpTurnsUp() {
+TEST_CASE("facing_successfulMoveUpTurnsUp") {
   GameModel m;
-  CHECK(m.tryMove(Direction::UP));
-  CHECK_POS(m, 1, 0);
-  CHECK_FACING(m, Direction::UP);
+  REQUIRE(m.tryMove(Direction::UP));
+  REQUIRE_POS(m, 1, 0);
+  REQUIRE_FACING(m, Direction::UP);
 }
 
-static void facing_successfulMoveLeftTurnsLeft() {
+TEST_CASE("facing_successfulMoveLeftTurnsLeft") {
   GameModel m;
-  CHECK(m.tryMove(Direction::LEFT));
-  CHECK_POS(m, 0, 1);
-  CHECK_FACING(m, Direction::LEFT);
+  REQUIRE(m.tryMove(Direction::LEFT));
+  REQUIRE_POS(m, 0, 1);
+  REQUIRE_FACING(m, Direction::LEFT);
 }
 
-static void facing_successfulMoveRightTurnsRight() {
+TEST_CASE("facing_successfulMoveRightTurnsRight") {
   GameModel m;
-  CHECK(m.tryMove(Direction::RIGHT));
-  CHECK_POS(m, 2, 1);
-  CHECK_FACING(m, Direction::RIGHT);
+  REQUIRE(m.tryMove(Direction::RIGHT));
+  REQUIRE_POS(m, 2, 1);
+  REQUIRE_FACING(m, Direction::RIGHT);
 }
 
 // The default is already DOWN, so turn away first or this proves nothing.
-static void facing_successfulMoveDownTurnsDown() {
+TEST_CASE("facing_successfulMoveDownTurnsDown") {
   GameModel m;
-  CHECK(m.tryMove(Direction::RIGHT)); // (2,1), facing RIGHT
-  CHECK(m.tryMove(Direction::DOWN));  // (2,2)
-  CHECK_POS(m, 2, 2);
-  CHECK_FACING(m, Direction::DOWN);
+  REQUIRE(m.tryMove(Direction::RIGHT)); // (2,1), facing RIGHT
+  REQUIRE(m.tryMove(Direction::DOWN));  // (2,2)
+  REQUIRE_POS(m, 2, 2);
+  REQUIRE_FACING(m, Direction::DOWN);
 }
 
-static void facing_followsTheLastRequestedDirection() {
+TEST_CASE("facing_followsTheLastRequestedDirection") {
   GameModel m;
-  CHECK(m.tryMove(Direction::RIGHT));
-  CHECK(m.tryMove(Direction::DOWN));
-  CHECK(m.tryMove(Direction::LEFT));
-  CHECK(m.tryMove(Direction::UP));
-  CHECK_POS(m, 1, 1);
-  CHECK_FACING(m, Direction::UP);
+  REQUIRE(m.tryMove(Direction::RIGHT));
+  REQUIRE(m.tryMove(Direction::DOWN));
+  REQUIRE(m.tryMove(Direction::LEFT));
+  REQUIRE(m.tryMove(Direction::UP));
+  REQUIRE_POS(m, 1, 1);
+  REQUIRE_FACING(m, Direction::UP);
 }
 
 // Blocked moves. Each one starts facing a DIFFERENT way than the blocked
 // request, so the turn is visible.
 
-static void facing_blockedByObstacleStillTurns() {
+TEST_CASE("facing_blockedByObstacleStillTurns") {
   GameModel m;
   MOVE(m, Direction::DOWN, 8);   // (1,9)
   MOVE(m, Direction::RIGHT, 12); // (13,9)
   MOVE(m, Direction::UP, 1); // (13,8), facing UP; wall at (14,8) to the right
-  CHECK_POS(m, 13, 8);
-  CHECK_FACING(m, Direction::UP);
+  REQUIRE_POS(m, 13, 8);
+  REQUIRE_FACING(m, Direction::UP);
 
-  CHECK(!m.tryMove(Direction::RIGHT));
-  CHECK_POS(m, 13, 8);               // did not move
-  CHECK_FACING(m, Direction::RIGHT); // but turned
+  REQUIRE(!m.tryMove(Direction::RIGHT));
+  REQUIRE_POS(m, 13, 8);               // did not move
+  REQUIRE_FACING(m, Direction::RIGHT); // but turned
 }
 
-static void facing_blockedFromBelowStillTurnsUp() {
+TEST_CASE("facing_blockedFromBelowStillTurnsUp") {
   GameModel m;
   MOVE(m, Direction::DOWN, 8);   // (1,9)
   MOVE(m, Direction::RIGHT, 13); // (14,9), facing RIGHT; wall at (14,8) above
-  CHECK_FACING(m, Direction::RIGHT);
+  REQUIRE_FACING(m, Direction::RIGHT);
 
-  CHECK(!m.tryMove(Direction::UP));
-  CHECK_POS(m, 14, 9);
-  CHECK_FACING(m, Direction::UP);
+  REQUIRE(!m.tryMove(Direction::UP));
+  REQUIRE_POS(m, 14, 9);
+  REQUIRE_FACING(m, Direction::UP);
 }
 
-static void facing_blockedByMapEdgeStillTurns() {
+TEST_CASE("facing_blockedByMapEdgeStillTurns") {
   GameModel m;
   MOVE(m, Direction::UP, 1);   // (1,0)
   MOVE(m, Direction::LEFT, 1); // (0,0), facing LEFT, in the top-left corner
-  CHECK_FACING(m, Direction::LEFT);
+  REQUIRE_FACING(m, Direction::LEFT);
 
-  CHECK(!m.tryMove(Direction::UP)); // off the top of the map
-  CHECK_POS(m, 0, 0);
-  CHECK_FACING(m, Direction::UP);
+  REQUIRE(!m.tryMove(Direction::UP)); // off the top of the map
+  REQUIRE_POS(m, 0, 0);
+  REQUIRE_FACING(m, Direction::UP);
 }
 
 // (13,8) has walls above (13,7) and to the right (14,8): two different blocked
 // directions from one tile, so facing must follow each attempt.
-static void facing_followsEachBlockedAttemptOnTheSameTile() {
+TEST_CASE("facing_followsEachBlockedAttemptOnTheSameTile") {
   GameModel m;
   MOVE(m, Direction::DOWN, 8);   // (1,9)
   MOVE(m, Direction::RIGHT, 12); // (13,9)
   MOVE(m, Direction::UP, 1);     // (13,8)
 
-  CHECK(!m.tryMove(Direction::UP));
-  CHECK_FACING(m, Direction::UP);
-  CHECK(!m.tryMove(Direction::RIGHT));
-  CHECK_FACING(m, Direction::RIGHT);
-  CHECK(!m.tryMove(Direction::UP));
-  CHECK_FACING(m, Direction::UP);
-  CHECK_POS(m, 13, 8);
+  REQUIRE(!m.tryMove(Direction::UP));
+  REQUIRE_FACING(m, Direction::UP);
+  REQUIRE(!m.tryMove(Direction::RIGHT));
+  REQUIRE_FACING(m, Direction::RIGHT);
+  REQUIRE(!m.tryMove(Direction::UP));
+  REQUIRE_FACING(m, Direction::UP);
+  REQUIRE_POS(m, 13, 8);
 }
 
 // Invalid / separate state
 
-static void facing_invalidDirectionIsIgnored() {
+TEST_CASE("facing_invalidDirectionIsIgnored") {
   GameModel m;
-  CHECK(!m.tryMove(static_cast<Direction>(99)));
-  CHECK_FACING(m, Direction::DOWN); // untouched at the start
+  REQUIRE(!m.tryMove(static_cast<Direction>(99)));
+  REQUIRE_FACING(m, Direction::DOWN); // untouched at the start
 
-  CHECK(m.tryMove(Direction::RIGHT));
-  CHECK(!m.tryMove(static_cast<Direction>(99)));
-  CHECK_FACING(m, Direction::RIGHT); // untouched after a real move
-  CHECK_POS(m, 2, 1);
+  REQUIRE(m.tryMove(Direction::RIGHT));
+  REQUIRE(!m.tryMove(static_cast<Direction>(99)));
+  REQUIRE_FACING(m, Direction::RIGHT); // untouched after a real move
+  REQUIRE_POS(m, 2, 1);
 }
 
-static void facing_eachModelHasItsOwnFacing() {
+TEST_CASE("facing_eachModelHasItsOwnFacing") {
   GameModel a;
   GameModel b;
-  CHECK(a.tryMove(Direction::RIGHT));
-  CHECK_FACING(a, Direction::RIGHT);
-  CHECK_FACING(b, Direction::DOWN); // b must not be affected by a
+  REQUIRE(a.tryMove(Direction::RIGHT));
+  REQUIRE_FACING(a, Direction::RIGHT);
+  REQUIRE_FACING(b, Direction::DOWN); // b must not be affected by a
 }
 
 // ---------------------------------------------------------------------------
@@ -552,153 +552,153 @@ static void facing_eachModelHasItsOwnFacing() {
 // clamping (it may be off the map), and it never changes position or facing.
 // ---------------------------------------------------------------------------
 
-#define CHECK_FRONT(model, expectedColumn, expectedRow)                        \
+#define REQUIRE_FRONT(model, expectedColumn, expectedRow)                      \
   do {                                                                         \
-    CHECK((model).tileInFront().column == (expectedColumn));                   \
-    CHECK((model).tileInFront().row == (expectedRow));                         \
+    REQUIRE((model).tileInFront().column == (expectedColumn));                 \
+    REQUIRE((model).tileInFront().row == (expectedRow));                       \
   } while (false)
 
 // Each direction. Every test checks facing first, so a wrong result is not
 // confused with the player simply not facing where the test thinks it is.
 
-static void tileInFront_atStartIsTheTileBelow() {
+TEST_CASE("tileInFront_atStartIsTheTileBelow") {
   GameModel m; // (1,1), facing DOWN
-  CHECK_FRONT(m, 1, 2);
+  REQUIRE_FRONT(m, 1, 2);
 }
 
-static void tileInFront_facingUpIsRowMinusOne() {
+TEST_CASE("tileInFront_facingUpIsRowMinusOne") {
   GameModel m;
   MOVE(m, Direction::DOWN, 4); // (1,5)
   MOVE(m, Direction::UP, 1);   // (1,4), facing UP
-  CHECK_FACING(m, Direction::UP);
-  CHECK_FRONT(m, 1, 3);
+  REQUIRE_FACING(m, Direction::UP);
+  REQUIRE_FRONT(m, 1, 3);
 }
 
-static void tileInFront_facingDownIsRowPlusOne() {
+TEST_CASE("tileInFront_facingDownIsRowPlusOne") {
   GameModel m;
   MOVE(m, Direction::RIGHT, 1); // (2,1): turn away from the default first
   MOVE(m, Direction::DOWN, 1);  // (2,2), facing DOWN
-  CHECK_FACING(m, Direction::DOWN);
-  CHECK_FRONT(m, 2, 3);
+  REQUIRE_FACING(m, Direction::DOWN);
+  REQUIRE_FRONT(m, 2, 3);
 }
 
-static void tileInFront_facingLeftIsColumnMinusOne() {
+TEST_CASE("tileInFront_facingLeftIsColumnMinusOne") {
   GameModel m;
   MOVE(m, Direction::RIGHT, 1); // (2,1)
   MOVE(m, Direction::LEFT, 1);  // (1,1), facing LEFT
-  CHECK_FACING(m, Direction::LEFT);
-  CHECK_FRONT(m, 0, 1);
+  REQUIRE_FACING(m, Direction::LEFT);
+  REQUIRE_FRONT(m, 0, 1);
 }
 
-static void tileInFront_facingRightIsColumnPlusOne() {
+TEST_CASE("tileInFront_facingRightIsColumnPlusOne") {
   GameModel m;
   MOVE(m, Direction::RIGHT, 1); // (2,1), facing RIGHT
-  CHECK_FACING(m, Direction::RIGHT);
-  CHECK_FRONT(m, 3, 1);
+  REQUIRE_FACING(m, Direction::RIGHT);
+  REQUIRE_FRONT(m, 3, 1);
 }
 
 // Off the map: returned as-is, never clamped.
 
-static void tileInFront_pastTopEdgeIsReturnedUnclamped() {
+TEST_CASE("tileInFront_pastTopEdgeIsReturnedUnclamped") {
   GameModel m;
   MOVE(m, Direction::UP, 1); // (1,0), facing UP
-  CHECK_FRONT(m, 1, -1);
+  REQUIRE_FRONT(m, 1, -1);
   const TilePosition front = m.tileInFront();
-  CHECK(!m.isInBounds(front.column, front.row));
+  REQUIRE(!m.isInBounds(front.column, front.row));
 }
 
-static void tileInFront_pastLeftEdgeIsReturnedUnclamped() {
+TEST_CASE("tileInFront_pastLeftEdgeIsReturnedUnclamped") {
   GameModel m;
   MOVE(m, Direction::LEFT, 1); // (0,1), facing LEFT
-  CHECK_FRONT(m, -1, 1);
+  REQUIRE_FRONT(m, -1, 1);
   const TilePosition front = m.tileInFront();
-  CHECK(!m.isInBounds(front.column, front.row));
+  REQUIRE(!m.isInBounds(front.column, front.row));
 }
 
-static void tileInFront_pastBottomEdgeIsReturnedUnclamped() {
+TEST_CASE("tileInFront_pastBottomEdgeIsReturnedUnclamped") {
   GameModel m;
   MOVE(m, Direction::DOWN, 13); // (1,14), facing DOWN
-  CHECK_FRONT(m, 1, GameModel::kMapHeight);
+  REQUIRE_FRONT(m, 1, GameModel::kMapHeight);
   const TilePosition front = m.tileInFront();
-  CHECK(!m.isInBounds(front.column, front.row));
+  REQUIRE(!m.isInBounds(front.column, front.row));
 }
 
-static void tileInFront_pastRightEdgeIsReturnedUnclamped() {
+TEST_CASE("tileInFront_pastRightEdgeIsReturnedUnclamped") {
   GameModel m;
   MOVE(m, Direction::UP, 1);     // (1,0)
   MOVE(m, Direction::RIGHT, 18); // (19,0), facing RIGHT
-  CHECK_FRONT(m, GameModel::kMapWidth, 0);
+  REQUIRE_FRONT(m, GameModel::kMapWidth, 0);
   const TilePosition front = m.tileInFront();
-  CHECK(!m.isInBounds(front.column, front.row));
+  REQUIRE(!m.isInBounds(front.column, front.row));
 }
 
 // No walkability check: a wall in front is still "the tile in front".
-static void tileInFront_returnsAnObstacleTileWithoutJudgingIt() {
+TEST_CASE("tileInFront_returnsAnObstacleTileWithoutJudgingIt") {
   GameModel m;
   MOVE(m, Direction::RIGHT, 3); // (4,1), facing RIGHT; (5,1) is a wall
-  CHECK_FRONT(m, 5, 1);
-  CHECK_TILE(m, 5, 1, TileType::OBSTACLE);
+  REQUIRE_FRONT(m, 5, 1);
+  REQUIRE_TILE(m, 5, 1, TileType::OBSTACLE);
 }
 
 // Read-only: no side effects, and callable on a const model.
-static void tileInFront_doesNotChangePositionOrFacing() {
+TEST_CASE("tileInFront_doesNotChangePositionOrFacing") {
   GameModel m;
   MOVE(m, Direction::RIGHT, 1); // (2,1), facing RIGHT
   const GameModel &readOnly = m;
   for (int i = 0; i < 3; ++i) {
-    CHECK_FRONT(readOnly, 3, 1);
-    CHECK_POS(readOnly, 2, 1);
-    CHECK_FACING(readOnly, Direction::RIGHT);
+    REQUIRE_FRONT(readOnly, 3, 1);
+    REQUIRE_POS(readOnly, 2, 1);
+    REQUIRE_FACING(readOnly, Direction::RIGHT);
   }
 }
 
 // After movement.
 
-static void tileInFront_followsThePlayerAfterSuccessfulMoves() {
+TEST_CASE("tileInFront_followsThePlayerAfterSuccessfulMoves") {
   GameModel m;
-  CHECK_FRONT(m, 1, 2);
-  CHECK(m.tryMove(Direction::RIGHT)); // (2,1)
-  CHECK_FRONT(m, 3, 1);
-  CHECK(m.tryMove(Direction::RIGHT)); // (3,1)
-  CHECK_FRONT(m, 4, 1);
-  CHECK(m.tryMove(Direction::DOWN)); // (3,2), now facing DOWN
-  CHECK_POS(m, 3, 2);
-  CHECK_FRONT(m, 3, 3);
+  REQUIRE_FRONT(m, 1, 2);
+  REQUIRE(m.tryMove(Direction::RIGHT)); // (2,1)
+  REQUIRE_FRONT(m, 3, 1);
+  REQUIRE(m.tryMove(Direction::RIGHT)); // (3,1)
+  REQUIRE_FRONT(m, 4, 1);
+  REQUIRE(m.tryMove(Direction::DOWN)); // (3,2), now facing DOWN
+  REQUIRE_POS(m, 3, 2);
+  REQUIRE_FRONT(m, 3, 3);
 }
 
-static void tileInFront_afterBlockedMoveStaysOnTheWall() {
+TEST_CASE("tileInFront_afterBlockedMoveStaysOnTheWall") {
   GameModel m;
-  MOVE(m, Direction::RIGHT, 3);        // (4,1), facing RIGHT
-  CHECK(!m.tryMove(Direction::RIGHT)); // blocked by the wall at (5,1)
-  CHECK_POS(m, 4, 1);
-  CHECK_FRONT(m, 5, 1);
+  MOVE(m, Direction::RIGHT, 3);          // (4,1), facing RIGHT
+  REQUIRE(!m.tryMove(Direction::RIGHT)); // blocked by the wall at (5,1)
+  REQUIRE_POS(m, 4, 1);
+  REQUIRE_FRONT(m, 5, 1);
 }
 
 // The blocked move turns the player, so the front tile must switch sides even
 // though the position did not change.
-static void tileInFront_afterBlockedMoveUsesTheNewFacing() {
+TEST_CASE("tileInFront_afterBlockedMoveUsesTheNewFacing") {
   GameModel m;
   MOVE(m, Direction::DOWN, 8);   // (1,9)
   MOVE(m, Direction::RIGHT, 12); // (13,9)
   MOVE(m, Direction::UP, 1);     // (13,8), facing UP
-  CHECK_FRONT(m, 13, 7);
+  REQUIRE_FRONT(m, 13, 7);
 
-  CHECK(!m.tryMove(Direction::RIGHT)); // wall at (14,8)
-  CHECK_POS(m, 13, 8);
-  CHECK_FACING(m, Direction::RIGHT);
-  CHECK_FRONT(m, 14, 8);
+  REQUIRE(!m.tryMove(Direction::RIGHT)); // wall at (14,8)
+  REQUIRE_POS(m, 13, 8);
+  REQUIRE_FACING(m, Direction::RIGHT);
+  REQUIRE_FRONT(m, 14, 8);
 }
 
-static void tileInFront_afterBlockedMoveAtMapEdgeIsOffTheMap() {
+TEST_CASE("tileInFront_afterBlockedMoveAtMapEdgeIsOffTheMap") {
   GameModel m;
   MOVE(m, Direction::UP, 1);   // (1,0)
   MOVE(m, Direction::LEFT, 1); // (0,0), facing LEFT
-  CHECK_FRONT(m, -1, 0);
+  REQUIRE_FRONT(m, -1, 0);
 
-  CHECK(!m.tryMove(Direction::UP)); // off the top of the map
-  CHECK_POS(m, 0, 0);
-  CHECK_FACING(m, Direction::UP);
-  CHECK_FRONT(m, 0, -1);
+  REQUIRE(!m.tryMove(Direction::UP)); // off the top of the map
+  REQUIRE_POS(m, 0, 0);
+  REQUIRE_FACING(m, Direction::UP);
+  REQUIRE_FRONT(m, 0, -1);
 }
 
 // ---------------------------------------------------------------------------
@@ -721,161 +721,161 @@ static int countTilled(const GameModel &m) {
   return count;
 }
 
-static void tilling_everyTileStartsUntilled() {
+TEST_CASE("tilling_everyTileStartsUntilled") {
   GameModel m;
-  CHECK(countTilled(m) == 0);
-  CHECK(!m.isTilled(3, 2));
-  CHECK(!m.isTilled(1, 1)); // the tile the player stands on
+  REQUIRE(countTilled(m) == 0);
+  REQUIRE(!m.isTilled(3, 2));
+  REQUIRE(!m.isTilled(1, 1)); // the tile the player stands on
 }
 
-static void tilling_validGroundSucceeds() {
+TEST_CASE("tilling_validGroundSucceeds") {
   GameModel m;
-  CHECK(m.tryTill(3, 2));
-  CHECK(m.isTilled(3, 2));
+  REQUIRE(m.tryTill(3, 2));
+  REQUIRE(m.isTilled(3, 2));
 }
 
-static void tilling_sameTileCannotBeTilledTwice() {
+TEST_CASE("tilling_sameTileCannotBeTilledTwice") {
   GameModel m;
-  CHECK(m.tryTill(3, 2));
-  CHECK(!m.tryTill(3, 2));
-  CHECK(!m.tryTill(3, 2));
-  CHECK(m.isTilled(3, 2)); // a refused attempt must not undo it
+  REQUIRE(m.tryTill(3, 2));
+  REQUIRE(!m.tryTill(3, 2));
+  REQUIRE(!m.tryTill(3, 2));
+  REQUIRE(m.isTilled(3, 2)); // a refused attempt must not undo it
 }
 
-static void tilling_everyObstacleRejectsTilling() {
+TEST_CASE("tilling_everyObstacleRejectsTilling") {
   GameModel m;
   int obstaclesTried = 0;
   for (int row = 0; row < m.mapHeight(); ++row) {
     for (int column = 0; column < m.mapWidth(); ++column) {
       if (m.tileAt(column, row) == TileType::OBSTACLE) {
-        CHECK(!m.tryTill(column, row));
-        CHECK(!m.isTilled(column, row));
+        REQUIRE(!m.tryTill(column, row));
+        REQUIRE(!m.isTilled(column, row));
         ++obstaclesTried;
       }
     }
   }
-  CHECK(obstaclesTried == 23);
-  CHECK(countTilled(m) == 0);
+  REQUIRE(obstaclesTried == 23);
+  REQUIRE(countTilled(m) == 0);
 }
 
-static void tilling_outOfBoundsRejectsTilling() {
+TEST_CASE("tilling_outOfBoundsRejectsTilling") {
   GameModel m;
-  CHECK(!m.tryTill(-1, 0));
-  CHECK(!m.tryTill(0, -1));
-  CHECK(!m.tryTill(-1, -1));
-  CHECK(!m.tryTill(GameModel::kMapWidth, 0));
-  CHECK(!m.tryTill(0, GameModel::kMapHeight));
-  CHECK(!m.tryTill(GameModel::kMapWidth, GameModel::kMapHeight));
-  CHECK(countTilled(m) == 0);
+  REQUIRE(!m.tryTill(-1, 0));
+  REQUIRE(!m.tryTill(0, -1));
+  REQUIRE(!m.tryTill(-1, -1));
+  REQUIRE(!m.tryTill(GameModel::kMapWidth, 0));
+  REQUIRE(!m.tryTill(0, GameModel::kMapHeight));
+  REQUIRE(!m.tryTill(GameModel::kMapWidth, GameModel::kMapHeight));
+  REQUIRE(countTilled(m) == 0);
 }
 
 // In the flat array, an off-map coordinate can land on a REAL tile:
 // (20,0) -> index 20 -> tile (0,1), and (-1,1) -> index 19 -> tile (19,0).
 // A missing bounds check would till those instead of rejecting.
-static void tilling_outOfBoundsNeverTouchesAnotherTile() {
+TEST_CASE("tilling_outOfBoundsNeverTouchesAnotherTile") {
   GameModel m;
-  CHECK(!m.tryTill(GameModel::kMapWidth, 0));
-  CHECK(!m.isTilled(0, 1));
-  CHECK(!m.tryTill(-1, 1));
-  CHECK(!m.isTilled(19, 0));
-  CHECK(countTilled(m) == 0);
+  REQUIRE(!m.tryTill(GameModel::kMapWidth, 0));
+  REQUIRE(!m.isTilled(0, 1));
+  REQUIRE(!m.tryTill(-1, 1));
+  REQUIRE(!m.isTilled(19, 0));
+  REQUIRE(countTilled(m) == 0);
 }
 
 // Same aliasing, on the read side.
-static void isTilled_outOfBoundsIsFalseBesideTilledTiles() {
+TEST_CASE("isTilled_outOfBoundsIsFalseBesideTilledTiles") {
   GameModel m;
-  CHECK(m.tryTill(0, 1));
-  CHECK(m.tryTill(19, 0));
-  CHECK(!m.isTilled(GameModel::kMapWidth, 0)); // would alias (0,1)
-  CHECK(!m.isTilled(-1, 1));                   // would alias (19,0)
+  REQUIRE(m.tryTill(0, 1));
+  REQUIRE(m.tryTill(19, 0));
+  REQUIRE(!m.isTilled(GameModel::kMapWidth, 0)); // would alias (0,1)
+  REQUIRE(!m.isTilled(-1, 1));                   // would alias (19,0)
 }
 
-static void tilling_tilledTileRemainsGround() {
+TEST_CASE("tilling_tilledTileRemainsGround") {
   GameModel m;
-  CHECK(m.tryTill(3, 2));
-  CHECK_TILE(m, 3, 2, TileType::GROUND);
+  REQUIRE(m.tryTill(3, 2));
+  REQUIRE_TILE(m, 3, 2, TileType::GROUND);
 }
 
-static void tilling_neverChangesTerrainOnAnyTile() {
+TEST_CASE("tilling_neverChangesTerrainOnAnyTile") {
   GameModel m;
   for (int row = 0; row < m.mapHeight(); ++row) {
     for (int column = 0; column < m.mapWidth(); ++column) {
       const TileType before = m.tileAt(column, row);
       m.tryTill(column, row);
-      CHECK_TILE(m, column, row, before);
+      REQUIRE_TILE(m, column, row, before);
     }
   }
 }
 
-static void tilling_changesOnlyTheTargetTile() {
+TEST_CASE("tilling_changesOnlyTheTargetTile") {
   GameModel m;
-  CHECK(m.tryTill(3, 2));
-  CHECK(countTilled(m) == 1);
-  CHECK(!m.isTilled(2, 2));
-  CHECK(!m.isTilled(4, 2));
-  CHECK(!m.isTilled(3, 1));
-  CHECK(!m.isTilled(3, 3));
-  CHECK(!m.isTilled(2, 3)); // what a swapped (column,row) index would hit
+  REQUIRE(m.tryTill(3, 2));
+  REQUIRE(countTilled(m) == 1);
+  REQUIRE(!m.isTilled(2, 2));
+  REQUIRE(!m.isTilled(4, 2));
+  REQUIRE(!m.isTilled(3, 1));
+  REQUIRE(!m.isTilled(3, 3));
+  REQUIRE(!m.isTilled(2, 3)); // what a swapped (column,row) index would hit
 }
 
-static void tilling_failedAttemptsDoNotChangeState() {
+TEST_CASE("tilling_failedAttemptsDoNotChangeState") {
   GameModel m;
-  CHECK(m.tryTill(3, 2));
-  CHECK(countTilled(m) == 1);
-  CHECK(!m.tryTill(3, 2));                    // already tilled
-  CHECK(!m.tryTill(5, 1));                    // obstacle
-  CHECK(!m.tryTill(-1, 0));                   // off the map
-  CHECK(!m.tryTill(GameModel::kMapWidth, 0)); // off the map
-  CHECK(countTilled(m) == 1);
-  CHECK(m.isTilled(3, 2));
+  REQUIRE(m.tryTill(3, 2));
+  REQUIRE(countTilled(m) == 1);
+  REQUIRE(!m.tryTill(3, 2));                    // already tilled
+  REQUIRE(!m.tryTill(5, 1));                    // obstacle
+  REQUIRE(!m.tryTill(-1, 0));                   // off the map
+  REQUIRE(!m.tryTill(GameModel::kMapWidth, 0)); // off the map
+  REQUIRE(countTilled(m) == 1);
+  REQUIRE(m.isTilled(3, 2));
 }
 
-static void tilling_playerCanWalkAcrossTilledGround() {
+TEST_CASE("tilling_playerCanWalkAcrossTilledGround") {
   GameModel m;
-  CHECK(m.tryTill(2, 1));
-  CHECK(m.tryTill(3, 1));
-  CHECK(m.tryTill(4, 1));
+  REQUIRE(m.tryTill(2, 1));
+  REQUIRE(m.tryTill(3, 1));
+  REQUIRE(m.tryTill(4, 1));
   MOVE(m, Direction::RIGHT, 3); // (4,1): every step lands on tilled soil
-  CHECK_POS(m, 4, 1);
+  REQUIRE_POS(m, 4, 1);
   MOVE(m, Direction::LEFT, 3); // and back to (1,1)
-  CHECK_POS(m, 1, 1);
-  CHECK(m.isTilled(2, 1)); // walking does not undo tilling
-  CHECK(m.isTilled(3, 1));
-  CHECK(m.isTilled(4, 1));
+  REQUIRE_POS(m, 1, 1);
+  REQUIRE(m.isTilled(2, 1)); // walking does not undo tilling
+  REQUIRE(m.isTilled(3, 1));
+  REQUIRE(m.isTilled(4, 1));
 }
 
 // The way the SDL layer will use it: target = tileInFront().
-static void tilling_worksWithTileInFront() {
+TEST_CASE("tilling_worksWithTileInFront") {
   GameModel m; // (1,1), facing DOWN
   const TilePosition front = m.tileInFront();
-  CHECK(m.tryTill(front.column, front.row));
-  CHECK(m.isTilled(1, 2));
-  CHECK(m.tryMove(Direction::DOWN)); // step onto the new soil
-  CHECK_POS(m, 1, 2);
-  CHECK(m.isTilled(1, 2));
+  REQUIRE(m.tryTill(front.column, front.row));
+  REQUIRE(m.isTilled(1, 2));
+  REQUIRE(m.tryMove(Direction::DOWN)); // step onto the new soil
+  REQUIRE_POS(m, 1, 2);
+  REQUIRE(m.isTilled(1, 2));
 }
 
-static void tilling_tileInFrontThatCannotBeTilledIsRejected() {
+TEST_CASE("tilling_tileInFrontThatCannotBeTilledIsRejected") {
   GameModel wall;
   MOVE(wall, Direction::RIGHT, 3); // (4,1), facing RIGHT; wall at (5,1)
   const TilePosition wallFront = wall.tileInFront();
-  CHECK(!wall.tryTill(wallFront.column, wallFront.row));
-  CHECK(!wall.isTilled(5, 1));
+  REQUIRE(!wall.tryTill(wallFront.column, wallFront.row));
+  REQUIRE(!wall.isTilled(5, 1));
 
   GameModel edge;
   MOVE(edge, Direction::UP, 1); // (1,0), facing UP; front is off the map
   const TilePosition edgeFront = edge.tileInFront();
-  CHECK(!edge.tryTill(edgeFront.column, edgeFront.row));
-  CHECK(countTilled(edge) == 0);
+  REQUIRE(!edge.tryTill(edgeFront.column, edgeFront.row));
+  REQUIRE(countTilled(edge) == 0);
 }
 
-static void tilling_eachModelHasItsOwnFarmState() {
+TEST_CASE("tilling_eachModelHasItsOwnFarmState") {
   GameModel a;
   GameModel b;
-  CHECK(a.tryTill(3, 2));
-  CHECK(a.isTilled(3, 2));
-  CHECK(!b.isTilled(3, 2));
-  CHECK(b.tryTill(3, 2)); // b is unaffected, so it can till the same tile
+  REQUIRE(a.tryTill(3, 2));
+  REQUIRE(a.isTilled(3, 2));
+  REQUIRE(!b.isTilled(3, 2));
+  REQUIRE(b.tryTill(3, 2)); // b is unaffected, so it can till the same tile
 }
 
 // ---------------------------------------------------------------------------
@@ -898,191 +898,193 @@ static int countPlanted(const GameModel &m) {
 }
 
 static void tillAndPlant(GameModel &m, int column, int row) {
-  CHECK(m.tryTill(column, row));
-  CHECK(m.tryPlant(column, row));
+  REQUIRE(m.tryTill(column, row));
+  REQUIRE(m.tryPlant(column, row));
 }
 
-static void planting_everyTileStartsEmpty() {
+TEST_CASE("planting_everyTileStartsEmpty") {
   GameModel m;
-  CHECK(countPlanted(m) == 0);
-  CHECK(m.tryTill(3, 2));
-  CHECK(!m.isPlanted(3, 2)); // tilling alone does not plant anything
+  REQUIRE(countPlanted(m) == 0);
+  REQUIRE(m.tryTill(3, 2));
+  REQUIRE(!m.isPlanted(3, 2)); // tilling alone does not plant anything
 }
 
-static void planting_tilledEmptySoilSucceeds() {
+TEST_CASE("planting_tilledEmptySoilSucceeds") {
   GameModel m;
-  CHECK(m.tryTill(3, 2));
-  CHECK(m.tryPlant(3, 2));
-  CHECK(m.isPlanted(3, 2));
+  REQUIRE(m.tryTill(3, 2));
+  REQUIRE(m.tryPlant(3, 2));
+  REQUIRE(m.isPlanted(3, 2));
 }
 
-static void planting_untilledGroundFails() {
+TEST_CASE("planting_untilledGroundFails") {
   GameModel m;
-  CHECK(!m.tryPlant(3, 2));
-  CHECK(!m.isPlanted(3, 2));
-  CHECK(!m.isTilled(3, 2)); // a refused plant must not till it as a side effect
+  REQUIRE(!m.tryPlant(3, 2));
+  REQUIRE(!m.isPlanted(3, 2));
+  REQUIRE(
+      !m.isTilled(3, 2)); // a refused plant must not till it as a side effect
 }
 
-static void planting_everyObstacleRejects() {
+TEST_CASE("planting_everyObstacleRejects") {
   GameModel m;
   int obstaclesTried = 0;
   for (int row = 0; row < m.mapHeight(); ++row) {
     for (int column = 0; column < m.mapWidth(); ++column) {
       if (m.tileAt(column, row) == TileType::OBSTACLE) {
-        CHECK(!m.tryPlant(column, row));
-        CHECK(!m.isPlanted(column, row));
+        REQUIRE(!m.tryPlant(column, row));
+        REQUIRE(!m.isPlanted(column, row));
         ++obstaclesTried;
       }
     }
   }
-  CHECK(obstaclesTried == 23);
-  CHECK(countPlanted(m) == 0);
+  REQUIRE(obstaclesTried == 23);
+  REQUIRE(countPlanted(m) == 0);
 }
 
-static void planting_sameTileCannotBePlantedTwice() {
+TEST_CASE("planting_sameTileCannotBePlantedTwice") {
   GameModel m;
   tillAndPlant(m, 3, 2);
-  CHECK(!m.tryPlant(3, 2));
-  CHECK(!m.tryPlant(3, 2));
-  CHECK(m.isPlanted(3, 2)); // a refused attempt must not remove the crop
-  CHECK(countPlanted(m) == 1);
+  REQUIRE(!m.tryPlant(3, 2));
+  REQUIRE(!m.tryPlant(3, 2));
+  REQUIRE(m.isPlanted(3, 2)); // a refused attempt must not remove the crop
+  REQUIRE(countPlanted(m) == 1);
 }
 
-static void planting_outOfBoundsFails() {
+TEST_CASE("planting_outOfBoundsFails") {
   GameModel m;
-  CHECK(!m.tryPlant(-1, 0));
-  CHECK(!m.tryPlant(0, -1));
-  CHECK(!m.tryPlant(-1, -1));
-  CHECK(!m.tryPlant(GameModel::kMapWidth, 0));
-  CHECK(!m.tryPlant(0, GameModel::kMapHeight));
-  CHECK(!m.tryPlant(GameModel::kMapWidth, GameModel::kMapHeight));
-  CHECK(countPlanted(m) == 0);
+  REQUIRE(!m.tryPlant(-1, 0));
+  REQUIRE(!m.tryPlant(0, -1));
+  REQUIRE(!m.tryPlant(-1, -1));
+  REQUIRE(!m.tryPlant(GameModel::kMapWidth, 0));
+  REQUIRE(!m.tryPlant(0, GameModel::kMapHeight));
+  REQUIRE(!m.tryPlant(GameModel::kMapWidth, GameModel::kMapHeight));
+  REQUIRE(countPlanted(m) == 0);
 }
 
 // Flat-array trap again: (20,0) is index 20 = tile (0,1); (-1,1) is index 19 =
 // tile (19,0). Both are made TILLED here, so a missing bounds check would let
 // the off-map attempt plant on them instead of being rejected.
-static void planting_outOfBoundsNeverTouchesAnotherTile() {
+TEST_CASE("planting_outOfBoundsNeverTouchesAnotherTile") {
   GameModel m;
-  CHECK(m.tryTill(0, 1));
-  CHECK(m.tryTill(19, 0));
-  CHECK(!m.tryPlant(GameModel::kMapWidth, 0));
-  CHECK(!m.isPlanted(0, 1));
-  CHECK(!m.tryPlant(-1, 1));
-  CHECK(!m.isPlanted(19, 0));
-  CHECK(countPlanted(m) == 0);
+  REQUIRE(m.tryTill(0, 1));
+  REQUIRE(m.tryTill(19, 0));
+  REQUIRE(!m.tryPlant(GameModel::kMapWidth, 0));
+  REQUIRE(!m.isPlanted(0, 1));
+  REQUIRE(!m.tryPlant(-1, 1));
+  REQUIRE(!m.isPlanted(19, 0));
+  REQUIRE(countPlanted(m) == 0);
 }
 
-static void isPlanted_outOfBoundsIsFalseBesidePlantedTiles() {
+TEST_CASE("isPlanted_outOfBoundsIsFalseBesidePlantedTiles") {
   GameModel m;
   tillAndPlant(m, 0, 1);
   tillAndPlant(m, 19, 0);
-  CHECK(!m.isPlanted(GameModel::kMapWidth, 0)); // would alias (0,1)
-  CHECK(!m.isPlanted(-1, 1));                   // would alias (19,0)
+  REQUIRE(!m.isPlanted(GameModel::kMapWidth, 0)); // would alias (0,1)
+  REQUIRE(!m.isPlanted(-1, 1));                   // would alias (19,0)
 }
 
-static void planting_tilledSoilRemainsTilled() {
+TEST_CASE("planting_tilledSoilRemainsTilled") {
   GameModel m;
   tillAndPlant(m, 3, 2);
-  CHECK(m.isTilled(3, 2));
+  REQUIRE(m.isTilled(3, 2));
 }
 
-static void planting_terrainRemainsGround() {
+TEST_CASE("planting_terrainRemainsGround") {
   GameModel m;
   tillAndPlant(m, 3, 2);
-  CHECK_TILE(m, 3, 2, TileType::GROUND);
+  REQUIRE_TILE(m, 3, 2, TileType::GROUND);
 }
 
-static void planting_changesOnlyTheTargetTile() {
+TEST_CASE("planting_changesOnlyTheTargetTile") {
   GameModel m;
-  CHECK(m.tryTill(3, 2));
-  CHECK(m.tryTill(4, 2)); // tilled neighbour that stays EMPTY
-  CHECK(m.tryPlant(3, 2));
-  CHECK(countPlanted(m) == 1);
-  CHECK(m.isTilled(4, 2));
-  CHECK(!m.isPlanted(4, 2)); // tilled but empty is its own state
-  CHECK(!m.isPlanted(2, 2));
-  CHECK(!m.isPlanted(3, 1));
-  CHECK(!m.isPlanted(3, 3));
-  CHECK(!m.isPlanted(2, 3)); // what a swapped (column,row) index would hit
-  CHECK(m.tryPlant(4, 2));   // the neighbour can still be planted afterwards
-  CHECK(countPlanted(m) == 2);
+  REQUIRE(m.tryTill(3, 2));
+  REQUIRE(m.tryTill(4, 2)); // tilled neighbour that stays EMPTY
+  REQUIRE(m.tryPlant(3, 2));
+  REQUIRE(countPlanted(m) == 1);
+  REQUIRE(m.isTilled(4, 2));
+  REQUIRE(!m.isPlanted(4, 2)); // tilled but empty is its own state
+  REQUIRE(!m.isPlanted(2, 2));
+  REQUIRE(!m.isPlanted(3, 1));
+  REQUIRE(!m.isPlanted(3, 3));
+  REQUIRE(!m.isPlanted(2, 3)); // what a swapped (column,row) index would hit
+  REQUIRE(m.tryPlant(4, 2));   // the neighbour can still be planted afterwards
+  REQUIRE(countPlanted(m) == 2);
 }
 
-static void planting_failedAttemptsDoNotChangeState() {
+TEST_CASE("planting_failedAttemptsDoNotChangeState") {
   GameModel m;
   tillAndPlant(m, 3, 2);
-  CHECK(!m.tryPlant(3, 2));                    // already planted
-  CHECK(!m.tryPlant(6, 2));                    // untilled ground
-  CHECK(!m.tryPlant(5, 1));                    // obstacle
-  CHECK(!m.tryPlant(-1, 0));                   // off the map
-  CHECK(!m.tryPlant(GameModel::kMapWidth, 0)); // off the map
-  CHECK(countPlanted(m) == 1);
-  CHECK(countTilled(m) == 1); // failed plants did not till anything
-  CHECK(m.isPlanted(3, 2));
+  REQUIRE(!m.tryPlant(3, 2));                    // already planted
+  REQUIRE(!m.tryPlant(6, 2));                    // untilled ground
+  REQUIRE(!m.tryPlant(5, 1));                    // obstacle
+  REQUIRE(!m.tryPlant(-1, 0));                   // off the map
+  REQUIRE(!m.tryPlant(GameModel::kMapWidth, 0)); // off the map
+  REQUIRE(countPlanted(m) == 1);
+  REQUIRE(countTilled(m) == 1); // failed plants did not till anything
+  REQUIRE(m.isPlanted(3, 2));
 }
 
 // Tilling an already-planted tile is refused, and must not wipe the crop.
-static void planting_cropSurvivesAFailedTill() {
+TEST_CASE("planting_cropSurvivesAFailedTill") {
   GameModel m;
   tillAndPlant(m, 3, 2);
-  CHECK(!m.tryTill(3, 2));
-  CHECK(m.isTilled(3, 2));
-  CHECK(m.isPlanted(3, 2));
+  REQUIRE(!m.tryTill(3, 2));
+  REQUIRE(m.isTilled(3, 2));
+  REQUIRE(m.isPlanted(3, 2));
 }
 
-static void planting_playerCanWalkOverPlantedSoil() {
+TEST_CASE("planting_playerCanWalkOverPlantedSoil") {
   GameModel m;
   tillAndPlant(m, 2, 1);
   tillAndPlant(m, 3, 1);
   tillAndPlant(m, 4, 1);
   MOVE(m, Direction::RIGHT, 3); // (4,1): every step lands on a crop
-  CHECK_POS(m, 4, 1);
+  REQUIRE_POS(m, 4, 1);
   MOVE(m, Direction::LEFT, 3); // and back to (1,1)
-  CHECK_POS(m, 1, 1);
-  CHECK(m.isPlanted(2, 1)); // walking does not trample anything
-  CHECK(m.isPlanted(3, 1));
-  CHECK(m.isPlanted(4, 1));
-  CHECK(m.isTilled(3, 1));
+  REQUIRE_POS(m, 1, 1);
+  REQUIRE(m.isPlanted(2, 1)); // walking does not trample anything
+  REQUIRE(m.isPlanted(3, 1));
+  REQUIRE(m.isPlanted(4, 1));
+  REQUIRE(m.isTilled(3, 1));
 }
 
 // The way the SDL layer will use it: target = tileInFront().
-static void planting_worksWithTileInFront() {
+TEST_CASE("planting_worksWithTileInFront") {
   GameModel m; // (1,1), facing DOWN
   const TilePosition front = m.tileInFront();
-  CHECK(m.tryTill(front.column, front.row));
-  CHECK(m.tryPlant(front.column, front.row));
-  CHECK(m.isPlanted(1, 2));
-  CHECK(m.tryMove(Direction::DOWN)); // step onto the planted tile
-  CHECK_POS(m, 1, 2);
-  CHECK(m.isPlanted(1, 2));
+  REQUIRE(m.tryTill(front.column, front.row));
+  REQUIRE(m.tryPlant(front.column, front.row));
+  REQUIRE(m.isPlanted(1, 2));
+  REQUIRE(m.tryMove(Direction::DOWN)); // step onto the planted tile
+  REQUIRE_POS(m, 1, 2);
+  REQUIRE(m.isPlanted(1, 2));
 }
 
-static void planting_tileInFrontThatCannotBePlantedIsRejected() {
+TEST_CASE("planting_tileInFrontThatCannotBePlantedIsRejected") {
   GameModel untilled; // (1,2) is ground but not tilled
   const TilePosition soil = untilled.tileInFront();
-  CHECK(!untilled.tryPlant(soil.column, soil.row));
+  REQUIRE(!untilled.tryPlant(soil.column, soil.row));
 
   GameModel wall;
   MOVE(wall, Direction::RIGHT, 3); // (4,1), facing RIGHT; wall at (5,1)
   const TilePosition wallFront = wall.tileInFront();
-  CHECK(!wall.tryPlant(wallFront.column, wallFront.row));
+  REQUIRE(!wall.tryPlant(wallFront.column, wallFront.row));
 
   GameModel edge;
   MOVE(edge, Direction::UP, 1); // (1,0), facing UP; front is off the map
   const TilePosition edgeFront = edge.tileInFront();
-  CHECK(!edge.tryPlant(edgeFront.column, edgeFront.row));
+  REQUIRE(!edge.tryPlant(edgeFront.column, edgeFront.row));
 
-  CHECK(countPlanted(untilled) + countPlanted(wall) + countPlanted(edge) == 0);
+  REQUIRE(countPlanted(untilled) + countPlanted(wall) + countPlanted(edge) ==
+          0);
 }
 
-static void planting_eachModelHasItsOwnCrops() {
+TEST_CASE("planting_eachModelHasItsOwnCrops") {
   GameModel a;
   GameModel b;
   tillAndPlant(a, 3, 2);
-  CHECK(a.isPlanted(3, 2));
-  CHECK(!b.isPlanted(3, 2));
-  CHECK(!b.tryPlant(3, 2)); // b's soil is untilled, so it still refuses
+  REQUIRE(a.isPlanted(3, 2));
+  REQUIRE(!b.isPlanted(3, 2));
+  REQUIRE(!b.tryPlant(3, 2)); // b's soil is untilled, so it still refuses
 }
 
 // ---------------------------------------------------------------------------
@@ -1102,8 +1104,8 @@ static void planting_eachModelHasItsOwnCrops() {
 static const int kDaysToSprout = 3;
 static const int kDaysToMature = 6; // 3 more days after sprouting
 
-#define CHECK_STAGE(model, column, row, expected)                              \
-  CHECK((model).cropStageAt((column), (row)) == (expected))
+#define REQUIRE_STAGE(model, column, row, expected)                            \
+  REQUIRE((model).cropStageAt((column), (row)) == (expected))
 
 static int countWatered(const GameModel &m) {
   int count = 0;
@@ -1125,7 +1127,7 @@ static void advanceDays(GameModel &m, int days) {
 
 // One watered day for a single crop: water it, then end the day.
 static void waterAndAdvance(GameModel &m, int column, int row) {
-  CHECK(m.tryWater(column, row));
+  REQUIRE(m.tryWater(column, row));
   m.advanceDay();
 }
 
@@ -1138,367 +1140,370 @@ static void waterDays(GameModel &m, int column, int row, int days) {
 
 // ---- Watering eligibility --------------------------------------------------
 
-static void watering_noCropMeansStageNoneAndNotWatered() {
+TEST_CASE("watering_noCropMeansStageNoneAndNotWatered") {
   GameModel m;
-  CHECK_STAGE(m, 3, 2, CropStage::NONE);
-  CHECK(!m.isWateredToday(3, 2));
+  REQUIRE_STAGE(m, 3, 2, CropStage::NONE);
+  REQUIRE(!m.isWateredToday(3, 2));
   for (int row = 0; row < m.mapHeight(); ++row) {
     for (int column = 0; column < m.mapWidth(); ++column) {
-      CHECK_STAGE(m, column, row, CropStage::NONE);
+      REQUIRE_STAGE(m, column, row, CropStage::NONE);
     }
   }
-  CHECK(countWatered(m) == 0);
+  REQUIRE(countWatered(m) == 0);
 }
 
-static void watering_plantedCropStartsAsADrySeed() {
+TEST_CASE("watering_plantedCropStartsAsADrySeed") {
   GameModel m;
   tillAndPlant(m, 3, 2);
-  CHECK_STAGE(m, 3, 2, CropStage::SEED);
-  CHECK(!m.isWateredToday(3, 2));
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED);
+  REQUIRE(!m.isWateredToday(3, 2));
 }
 
-static void watering_plantedCropCanBeWatered() {
+TEST_CASE("watering_plantedCropCanBeWatered") {
   GameModel m;
   tillAndPlant(m, 3, 2);
-  CHECK(m.tryWater(3, 2));
-  CHECK(m.isWateredToday(3, 2));
-  CHECK_STAGE(m, 3, 2, CropStage::SEED); // growth only happens in advanceDay()
+  REQUIRE(m.tryWater(3, 2));
+  REQUIRE(m.isWateredToday(3, 2));
+  REQUIRE_STAGE(m, 3, 2,
+                CropStage::SEED); // growth only happens in advanceDay()
 }
 
-static void watering_soilWithoutACropRejects() {
+TEST_CASE("watering_soilWithoutACropRejects") {
   GameModel m;
-  CHECK(m.tryTill(3, 2)); // tilled but empty
-  CHECK(!m.tryWater(3, 2));
-  CHECK(!m.isWateredToday(3, 2));
-  CHECK_STAGE(m, 3, 2, CropStage::NONE);
-  CHECK(!m.tryWater(6, 2)); // ordinary untilled ground
-  CHECK(!m.isWateredToday(6, 2));
+  REQUIRE(m.tryTill(3, 2)); // tilled but empty
+  REQUIRE(!m.tryWater(3, 2));
+  REQUIRE(!m.isWateredToday(3, 2));
+  REQUIRE_STAGE(m, 3, 2, CropStage::NONE);
+  REQUIRE(!m.tryWater(6, 2)); // ordinary untilled ground
+  REQUIRE(!m.isWateredToday(6, 2));
 }
 
-static void watering_everyObstacleRejects() {
+TEST_CASE("watering_everyObstacleRejects") {
   GameModel m;
   int obstaclesTried = 0;
   for (int row = 0; row < m.mapHeight(); ++row) {
     for (int column = 0; column < m.mapWidth(); ++column) {
       if (m.tileAt(column, row) == TileType::OBSTACLE) {
-        CHECK(!m.tryWater(column, row));
-        CHECK(!m.isWateredToday(column, row));
-        CHECK_STAGE(m, column, row, CropStage::NONE);
+        REQUIRE(!m.tryWater(column, row));
+        REQUIRE(!m.isWateredToday(column, row));
+        REQUIRE_STAGE(m, column, row, CropStage::NONE);
         ++obstaclesTried;
       }
     }
   }
-  CHECK(obstaclesTried == 23);
+  REQUIRE(obstaclesTried == 23);
 }
 
-static void watering_outOfBoundsRejects() {
+TEST_CASE("watering_outOfBoundsRejects") {
   GameModel m;
-  CHECK(!m.tryWater(-1, 0));
-  CHECK(!m.tryWater(0, -1));
-  CHECK(!m.tryWater(-1, -1));
-  CHECK(!m.tryWater(GameModel::kMapWidth, 0));
-  CHECK(!m.tryWater(0, GameModel::kMapHeight));
-  CHECK(!m.tryWater(GameModel::kMapWidth, GameModel::kMapHeight));
-  CHECK(countWatered(m) == 0);
+  REQUIRE(!m.tryWater(-1, 0));
+  REQUIRE(!m.tryWater(0, -1));
+  REQUIRE(!m.tryWater(-1, -1));
+  REQUIRE(!m.tryWater(GameModel::kMapWidth, 0));
+  REQUIRE(!m.tryWater(0, GameModel::kMapHeight));
+  REQUIRE(!m.tryWater(GameModel::kMapWidth, GameModel::kMapHeight));
+  REQUIRE(countWatered(m) == 0);
 }
 
-static void watering_queriesOffTheMapAreFalseOrNone() {
+TEST_CASE("watering_queriesOffTheMapAreFalseOrNone") {
   GameModel m;
-  CHECK(!m.isWateredToday(-1, 0));
-  CHECK(!m.isWateredToday(0, GameModel::kMapHeight));
-  CHECK(!m.isWateredToday(GameModel::kMapWidth, GameModel::kMapHeight));
-  CHECK_STAGE(m, -1, 0, CropStage::NONE);
-  CHECK_STAGE(m, 0, GameModel::kMapHeight, CropStage::NONE);
-  CHECK_STAGE(m, GameModel::kMapWidth, GameModel::kMapHeight, CropStage::NONE);
+  REQUIRE(!m.isWateredToday(-1, 0));
+  REQUIRE(!m.isWateredToday(0, GameModel::kMapHeight));
+  REQUIRE(!m.isWateredToday(GameModel::kMapWidth, GameModel::kMapHeight));
+  REQUIRE_STAGE(m, -1, 0, CropStage::NONE);
+  REQUIRE_STAGE(m, 0, GameModel::kMapHeight, CropStage::NONE);
+  REQUIRE_STAGE(m, GameModel::kMapWidth, GameModel::kMapHeight,
+                CropStage::NONE);
 }
 
 // Flat-array trap: (20,0) is index 20 = tile (0,1); (-1,1) is index 19 = tile
 // (19,0). Both have real crops here, so a missing bounds check would water
 // them instead of rejecting the off-map attempt.
-static void watering_outOfBoundsNeverTouchesAnotherCrop() {
+TEST_CASE("watering_outOfBoundsNeverTouchesAnotherCrop") {
   GameModel m;
   tillAndPlant(m, 0, 1);
   tillAndPlant(m, 19, 0);
-  CHECK(!m.tryWater(GameModel::kMapWidth, 0));
-  CHECK(!m.isWateredToday(0, 1));
-  CHECK(!m.tryWater(-1, 1));
-  CHECK(!m.isWateredToday(19, 0));
-  CHECK(countWatered(m) == 0);
+  REQUIRE(!m.tryWater(GameModel::kMapWidth, 0));
+  REQUIRE(!m.isWateredToday(0, 1));
+  REQUIRE(!m.tryWater(-1, 1));
+  REQUIRE(!m.isWateredToday(19, 0));
+  REQUIRE(countWatered(m) == 0);
 }
 
 // Same aliasing on the read side: the real crops are watered, the off-map
 // neighbours must still report "not watered" and "no crop".
-static void watering_queriesOffTheMapIgnoreCropsAtAliasedTiles() {
+TEST_CASE("watering_queriesOffTheMapIgnoreCropsAtAliasedTiles") {
   GameModel m;
   tillAndPlant(m, 0, 1);
   tillAndPlant(m, 19, 0);
-  CHECK(m.tryWater(0, 1));
-  CHECK(m.tryWater(19, 0));
-  CHECK(!m.isWateredToday(GameModel::kMapWidth, 0)); // would alias (0,1)
-  CHECK(!m.isWateredToday(-1, 1));                   // would alias (19,0)
-  CHECK_STAGE(m, GameModel::kMapWidth, 0, CropStage::NONE);
-  CHECK_STAGE(m, -1, 1, CropStage::NONE);
+  REQUIRE(m.tryWater(0, 1));
+  REQUIRE(m.tryWater(19, 0));
+  REQUIRE(!m.isWateredToday(GameModel::kMapWidth, 0)); // would alias (0,1)
+  REQUIRE(!m.isWateredToday(-1, 1));                   // would alias (19,0)
+  REQUIRE_STAGE(m, GameModel::kMapWidth, 0, CropStage::NONE);
+  REQUIRE_STAGE(m, -1, 1, CropStage::NONE);
 }
 
 // ---- Duplicate watering ----------------------------------------------------
 
-static void watering_sameCropCannotBeWateredTwiceInOneDay() {
+TEST_CASE("watering_sameCropCannotBeWateredTwiceInOneDay") {
   GameModel m;
   tillAndPlant(m, 3, 2);
-  CHECK(m.tryWater(3, 2));
-  CHECK(!m.tryWater(3, 2));
-  CHECK(!m.tryWater(3, 2));
-  CHECK(m.isWateredToday(3, 2));
+  REQUIRE(m.tryWater(3, 2));
+  REQUIRE(!m.tryWater(3, 2));
+  REQUIRE(!m.tryWater(3, 2));
+  REQUIRE(m.isWateredToday(3, 2));
 }
 
 // Failed attempts must not add growth either: the crop should still need
 // exactly kDaysToSprout watered DAYS, however many extra attempts were made.
-static void watering_failedAttemptsDoNotChangeState() {
+TEST_CASE("watering_failedAttemptsDoNotChangeState") {
   GameModel m;
   tillAndPlant(m, 3, 2);
-  CHECK(m.tryWater(3, 2));
-  CHECK(!m.tryWater(3, 2));                    // already watered
-  CHECK(!m.tryWater(3, 2));                    // and again
-  CHECK(!m.tryWater(6, 2));                    // untilled ground
-  CHECK(!m.tryWater(5, 1));                    // obstacle
-  CHECK(!m.tryWater(-1, 0));                   // off the map
-  CHECK(!m.tryWater(GameModel::kMapWidth, 0)); // off the map
-  CHECK(countWatered(m) == 1);
+  REQUIRE(m.tryWater(3, 2));
+  REQUIRE(!m.tryWater(3, 2));                    // already watered
+  REQUIRE(!m.tryWater(3, 2));                    // and again
+  REQUIRE(!m.tryWater(6, 2));                    // untilled ground
+  REQUIRE(!m.tryWater(5, 1));                    // obstacle
+  REQUIRE(!m.tryWater(-1, 0));                   // off the map
+  REQUIRE(!m.tryWater(GameModel::kMapWidth, 0)); // off the map
+  REQUIRE(countWatered(m) == 1);
   m.advanceDay();                        // watered day 1
   waterDays(m, 3, 2, kDaysToSprout - 2); // watered days 2 .. (sprout - 1)
-  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED);
   waterAndAdvance(m, 3, 2); // watered day 3
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT);
 }
 
-static void watering_onlyTheTargetedCropGetsWater() {
+TEST_CASE("watering_onlyTheTargetedCropGetsWater") {
   GameModel m;
   tillAndPlant(m, 3, 2);
   tillAndPlant(m, 4, 2);
-  CHECK(m.tryWater(3, 2));
-  CHECK(m.isWateredToday(3, 2));
-  CHECK(!m.isWateredToday(4, 2));
-  CHECK(!m.isWateredToday(2, 3)); // what a swapped (column,row) index would hit
-  CHECK(countWatered(m) == 1);
+  REQUIRE(m.tryWater(3, 2));
+  REQUIRE(m.isWateredToday(3, 2));
+  REQUIRE(!m.isWateredToday(4, 2));
+  REQUIRE(
+      !m.isWateredToday(2, 3)); // what a swapped (column,row) index would hit
+  REQUIRE(countWatered(m) == 1);
   m.advanceDay();
   waterDays(m, 3, 2, kDaysToSprout - 1); // only (3,2) is ever watered
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
-  CHECK_STAGE(m, 4, 2, CropStage::SEED);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 4, 2, CropStage::SEED);
 }
 
 // ---- Daily reset -----------------------------------------------------------
 
-static void advanceDay_clearsWateringSoCropsCanBeWateredAgain() {
+TEST_CASE("advanceDay_clearsWateringSoCropsCanBeWateredAgain") {
   GameModel m;
   tillAndPlant(m, 3, 2);
-  CHECK(m.tryWater(3, 2));
-  CHECK(m.isWateredToday(3, 2));
+  REQUIRE(m.tryWater(3, 2));
+  REQUIRE(m.isWateredToday(3, 2));
   m.advanceDay();
-  CHECK(!m.isWateredToday(3, 2));
-  CHECK(m.tryWater(3, 2));  // allowed again on the new day
-  CHECK(!m.tryWater(3, 2)); // but still only once per day
+  REQUIRE(!m.isWateredToday(3, 2));
+  REQUIRE(m.tryWater(3, 2));  // allowed again on the new day
+  REQUIRE(!m.tryWater(3, 2)); // but still only once per day
 }
 
-static void advanceDay_onAFarmWithNoCropsChangesNothing() {
+TEST_CASE("advanceDay_onAFarmWithNoCropsChangesNothing") {
   GameModel m;
-  CHECK(m.tryTill(3, 2)); // tilled, no crop
+  REQUIRE(m.tryTill(3, 2)); // tilled, no crop
   advanceDays(m, 3);
-  CHECK(countPlanted(m) == 0);
-  CHECK(countWatered(m) == 0);
-  CHECK(countTilled(m) == 1);
-  CHECK_STAGE(m, 3, 2, CropStage::NONE);
-  CHECK_POS(m, 1, 1);
-  CHECK_FACING(m, Direction::DOWN);
+  REQUIRE(countPlanted(m) == 0);
+  REQUIRE(countWatered(m) == 0);
+  REQUIRE(countTilled(m) == 1);
+  REQUIRE_STAGE(m, 3, 2, CropStage::NONE);
+  REQUIRE_POS(m, 1, 1);
+  REQUIRE_FACING(m, Direction::DOWN);
 }
 
 // ---- Growth stages: SEED -> (3 watered days) SPROUT -> (3 more) MATURE -----
 
-static void growth_wateringAloneDoesNotGrowAndOneDayIsNotEnough() {
+TEST_CASE("growth_wateringAloneDoesNotGrowAndOneDayIsNotEnough") {
   GameModel m;
   tillAndPlant(m, 3, 2);
-  CHECK(m.tryWater(3, 2));
-  CHECK_STAGE(m, 3, 2, CropStage::SEED); // watering alone does not grow it
+  REQUIRE(m.tryWater(3, 2));
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED); // watering alone does not grow it
   m.advanceDay();
-  CHECK_STAGE(m, 3, 2, CropStage::SEED); // one watered day is not enough
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED); // one watered day is not enough
 }
 
-static void growth_thirdWateredDayMakesASprout() {
+TEST_CASE("growth_thirdWateredDayMakesASprout") {
   GameModel m;
   tillAndPlant(m, 3, 2);
   waterDays(m, 3, 2, kDaysToSprout - 1);
-  CHECK_STAGE(m, 3, 2, CropStage::SEED); // two watered days: still a seed
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED); // two watered days: still a seed
   waterAndAdvance(m, 3, 2);
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT);
 }
 
-static void growth_sproutStaysASproutUntilTheSixthWateredDay() {
+TEST_CASE("growth_sproutStaysASproutUntilTheSixthWateredDay") {
   GameModel m;
   tillAndPlant(m, 3, 2);
   waterDays(m, 3, 2, kDaysToSprout);
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT);
   waterDays(m, 3, 2, kDaysToMature - kDaysToSprout - 1);
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT); // five watered days in total
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT); // five watered days in total
 }
 
-static void growth_sixthWateredDayMakesItMature() {
+TEST_CASE("growth_sixthWateredDayMakesItMature") {
   GameModel m;
   tillAndPlant(m, 3, 2);
   waterDays(m, 3, 2, kDaysToMature - 1);
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT);
   waterAndAdvance(m, 3, 2);
-  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+  REQUIRE_STAGE(m, 3, 2, CropStage::MATURE);
 }
 
 // Return value of tryWater is deliberately not asserted here: the rules do not
 // say whether a mature crop may still be watered, only that it stays MATURE.
-static void growth_matureCropStaysMature() {
+TEST_CASE("growth_matureCropStaysMature") {
   GameModel m;
   tillAndPlant(m, 3, 2);
   waterDays(m, 3, 2, kDaysToMature);
-  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+  REQUIRE_STAGE(m, 3, 2, CropStage::MATURE);
   for (int day = 0; day < 6; ++day) {
     if (day % 2 == 0) {
       m.tryWater(3, 2);
     }
     m.advanceDay();
-    CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+    REQUIRE_STAGE(m, 3, 2, CropStage::MATURE);
   }
 }
 
-static void growth_cropsGrowIndependently() {
+TEST_CASE("growth_cropsGrowIndependently") {
   GameModel m;
   tillAndPlant(m, 3, 2); // A: watered every day
   tillAndPlant(m, 4, 2); // B: watered for the first 3 days only
   tillAndPlant(m, 3, 3); // C: never watered
   for (int day = 0; day < kDaysToMature; ++day) {
-    CHECK(m.tryWater(3, 2));
+    REQUIRE(m.tryWater(3, 2));
     if (day < kDaysToSprout) {
-      CHECK(m.tryWater(4, 2));
+      REQUIRE(m.tryWater(4, 2));
     }
     m.advanceDay();
   }
-  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
-  CHECK_STAGE(m, 4, 2, CropStage::SPROUT);
-  CHECK_STAGE(m, 3, 3, CropStage::SEED);
+  REQUIRE_STAGE(m, 3, 2, CropStage::MATURE);
+  REQUIRE_STAGE(m, 4, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 3, 3, CropStage::SEED);
 }
 
-static void growth_cropPlantedLaterStartsAsASeed() {
+TEST_CASE("growth_cropPlantedLaterStartsAsASeed") {
   GameModel m;
   tillAndPlant(m, 3, 2);
   waterDays(m, 3, 2, kDaysToMature);
-  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+  REQUIRE_STAGE(m, 3, 2, CropStage::MATURE);
 
   tillAndPlant(m, 4, 2); // a new crop, planted much later
-  CHECK_STAGE(m, 4, 2, CropStage::SEED);
-  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+  REQUIRE_STAGE(m, 4, 2, CropStage::SEED);
+  REQUIRE_STAGE(m, 3, 2, CropStage::MATURE);
   waterDays(m, 4, 2, kDaysToSprout);
-  CHECK_STAGE(m, 4, 2, CropStage::SPROUT);
-  CHECK_STAGE(m, 3, 2, CropStage::MATURE); // unwatered since, still mature
+  REQUIRE_STAGE(m, 4, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 3, 2, CropStage::MATURE); // unwatered since, still mature
 }
 
 // ---- Missed days -----------------------------------------------------------
 
-static void growth_unwateredDaysDoNotGrowTheCrop() {
+TEST_CASE("growth_unwateredDaysDoNotGrowTheCrop") {
   GameModel m;
   tillAndPlant(m, 3, 2);
   advanceDays(m, 5);
-  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED);
   waterDays(m, 3, 2, kDaysToSprout - 1); // dry days earlier count for nothing
-  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED);
   waterAndAdvance(m, 3, 2);
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT);
 }
 
-static void growth_missedDayPausesButDoesNotResetProgress() {
+TEST_CASE("growth_missedDayPausesButDoesNotResetProgress") {
   GameModel m;
   tillAndPlant(m, 3, 2);
   waterDays(m, 3, 2, 2); // watered days 1-2
-  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED);
 
   m.advanceDay(); // missed day: progress must stay at 2
-  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED);
 
-  waterAndAdvance(m, 3, 2);                // watered day 3
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT); // would still be SEED if reset
+  waterAndAdvance(m, 3, 2);                  // watered day 3
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT); // would still be SEED if reset
 
   advanceDays(m, 2); // two missed days: a sprout does not revert to a seed
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT);
 
   waterDays(m, 3, 2, 2); // watered days 4-5
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT);
 
   m.advanceDay(); // another missed day
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT);
 
   waterAndAdvance(m, 3, 2); // watered day 6: ten days passed, six watered
-  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
+  REQUIRE_STAGE(m, 3, 2, CropStage::MATURE);
 }
 
 // ---- Existing behaviour stays unchanged -----------------------------------
 
-static void advanceDay_leavesTerrainTillingPlantingAndPlayerUnchanged() {
+TEST_CASE("advanceDay_leavesTerrainTillingPlantingAndPlayerUnchanged") {
   GameModel m;
   tillAndPlant(m, 3, 2);
   MOVE(m, Direction::RIGHT, 1); // (2,1), facing RIGHT
-  CHECK(m.tryWater(3, 2));
+  REQUIRE(m.tryWater(3, 2));
   advanceDays(m, 2);
-  CHECK_POS(m, 2, 1);
-  CHECK_FACING(m, Direction::RIGHT);
-  CHECK_TILE(m, 3, 2, TileType::GROUND);
-  CHECK(m.isTilled(3, 2));
-  CHECK(m.isPlanted(3, 2));
-  CHECK(countTilled(m) == 1);
-  CHECK(countPlanted(m) == 1);
+  REQUIRE_POS(m, 2, 1);
+  REQUIRE_FACING(m, Direction::RIGHT);
+  REQUIRE_TILE(m, 3, 2, TileType::GROUND);
+  REQUIRE(m.isTilled(3, 2));
+  REQUIRE(m.isPlanted(3, 2));
+  REQUIRE(countTilled(m) == 1);
+  REQUIRE(countPlanted(m) == 1);
 }
 
-static void growth_playerCanStillWalkOverGrownCrops() {
+TEST_CASE("growth_playerCanStillWalkOverGrownCrops") {
   GameModel m;
   tillAndPlant(m, 2, 1);
   tillAndPlant(m, 3, 1);
   tillAndPlant(m, 4, 1);
   for (int day = 0; day < kDaysToMature; ++day) {
-    CHECK(m.tryWater(2, 1));
-    CHECK(m.tryWater(3, 1));
-    CHECK(m.tryWater(4, 1));
+    REQUIRE(m.tryWater(2, 1));
+    REQUIRE(m.tryWater(3, 1));
+    REQUIRE(m.tryWater(4, 1));
     m.advanceDay();
   }
-  CHECK_STAGE(m, 2, 1, CropStage::MATURE);
-  CHECK_STAGE(m, 3, 1, CropStage::MATURE);
-  CHECK_STAGE(m, 4, 1, CropStage::MATURE);
+  REQUIRE_STAGE(m, 2, 1, CropStage::MATURE);
+  REQUIRE_STAGE(m, 3, 1, CropStage::MATURE);
+  REQUIRE_STAGE(m, 4, 1, CropStage::MATURE);
   MOVE(m, Direction::RIGHT, 3); // (4,1), over three mature crops
-  CHECK_POS(m, 4, 1);
+  REQUIRE_POS(m, 4, 1);
   MOVE(m, Direction::LEFT, 3);
-  CHECK_POS(m, 1, 1);
-  CHECK_STAGE(m, 3, 1, CropStage::MATURE); // walking does not harm them
+  REQUIRE_POS(m, 1, 1);
+  REQUIRE_STAGE(m, 3, 1, CropStage::MATURE); // walking does not harm them
 }
 
 // The way the SDL layer will use it: target = tileInFront().
-static void watering_worksWithTileInFront() {
+TEST_CASE("watering_worksWithTileInFront") {
   GameModel m; // (1,1), facing DOWN
   const TilePosition front = m.tileInFront();
-  CHECK(m.tryTill(front.column, front.row));
-  CHECK(m.tryPlant(front.column, front.row));
-  CHECK(m.tryWater(front.column, front.row));
+  REQUIRE(m.tryTill(front.column, front.row));
+  REQUIRE(m.tryPlant(front.column, front.row));
+  REQUIRE(m.tryWater(front.column, front.row));
   m.advanceDay();
-  CHECK_STAGE(m, 1, 2, CropStage::SEED); // 1 of 3 days
+  REQUIRE_STAGE(m, 1, 2, CropStage::SEED); // 1 of 3 days
   waterDays(m, front.column, front.row, kDaysToSprout - 1);
-  CHECK_STAGE(m, 1, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 1, 2, CropStage::SPROUT);
 
   GameModel dry; // front tile is plain ground: nothing to water
   const TilePosition bare = dry.tileInFront();
-  CHECK(!dry.tryWater(bare.column, bare.row));
+  REQUIRE(!dry.tryWater(bare.column, bare.row));
 }
 
-static void watering_eachModelHasItsOwnState() {
+TEST_CASE("watering_eachModelHasItsOwnState") {
   GameModel a;
   GameModel b;
   tillAndPlant(a, 3, 2);
   tillAndPlant(b, 3, 2);
   waterDays(a, 3, 2, kDaysToSprout);
-  CHECK_STAGE(a, 3, 2, CropStage::SPROUT);
-  CHECK_STAGE(b, 3, 2, CropStage::SEED);
-  CHECK(!b.isWateredToday(3, 2));
-  CHECK(b.tryWater(3, 2)); // b has not been watered yet today
+  REQUIRE_STAGE(a, 3, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(b, 3, 2, CropStage::SEED);
+  REQUIRE(!b.isWateredToday(3, 2));
+  REQUIRE(b.tryWater(3, 2)); // b has not been watered yet today
 }
 
 // ---------------------------------------------------------------------------
@@ -1512,425 +1517,264 @@ static void watering_eachModelHasItsOwnState() {
 static void growToMature(GameModel &m, int column, int row) {
   tillAndPlant(m, column, row);
   waterDays(m, column, row, kDaysToMature);
-  CHECK_STAGE(m, column, row, CropStage::MATURE);
+  REQUIRE_STAGE(m, column, row, CropStage::MATURE);
 }
 
-static void harvest_produceCountStartsAtZero() {
+TEST_CASE("harvest_produceCountStartsAtZero") {
   GameModel m;
-  CHECK(m.produceCount() == 0);
+  REQUIRE(m.produceCount() == 0);
   tillAndPlant(m, 3, 2);
   m.advanceDay();
-  CHECK(m.produceCount() == 0); // planting and growing alone collect nothing
+  REQUIRE(m.produceCount() == 0); // planting and growing alone collect nothing
 }
 
-static void harvest_matureCropSucceedsAndCountsOne() {
+TEST_CASE("harvest_matureCropSucceedsAndCountsOne") {
   GameModel m;
   growToMature(m, 3, 2);
-  CHECK(m.tryHarvest(3, 2));
-  CHECK(m.produceCount() == 1);
-  CHECK_STAGE(m, 3, 2, CropStage::NONE);
-  CHECK(!m.isPlanted(3, 2));
+  REQUIRE(m.tryHarvest(3, 2));
+  REQUIRE(m.produceCount() == 1);
+  REQUIRE_STAGE(m, 3, 2, CropStage::NONE);
+  REQUIRE(!m.isPlanted(3, 2));
 }
 
-static void harvest_keepsTheSoilTilledAndTheTerrainGround() {
+TEST_CASE("harvest_keepsTheSoilTilledAndTheTerrainGround") {
   GameModel m;
   growToMature(m, 3, 2);
-  CHECK(m.tryHarvest(3, 2));
-  CHECK(m.isTilled(3, 2));
-  CHECK_TILE(m, 3, 2, TileType::GROUND);
+  REQUIRE(m.tryHarvest(3, 2));
+  REQUIRE(m.isTilled(3, 2));
+  REQUIRE_TILE(m, 3, 2, TileType::GROUND);
 }
 
 // The boundary matters: five watered days is still a sprout, six is mature.
-static void harvest_seedAndSproutAreRefusedUntilTheSixthWateredDay() {
+TEST_CASE("harvest_seedAndSproutAreRefusedUntilTheSixthWateredDay") {
   GameModel m;
   tillAndPlant(m, 3, 2);
-  CHECK(!m.tryHarvest(3, 2)); // seed
-  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+  REQUIRE(!m.tryHarvest(3, 2)); // seed
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED);
 
   waterDays(m, 3, 2, kDaysToSprout);
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
-  CHECK(!m.tryHarvest(3, 2)); // sprout
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT);
+  REQUIRE(!m.tryHarvest(3, 2)); // sprout
 
   waterDays(m, 3, 2, kDaysToMature - kDaysToSprout - 1);
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT); // five watered days
-  CHECK(!m.tryHarvest(3, 2));
-  CHECK(m.produceCount() == 0);
-  CHECK(m.isPlanted(3, 2)); // refused harvests leave the crop alone
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT); // five watered days
+  REQUIRE(!m.tryHarvest(3, 2));
+  REQUIRE(m.produceCount() == 0);
+  REQUIRE(m.isPlanted(3, 2)); // refused harvests leave the crop alone
 
   waterAndAdvance(m, 3, 2); // sixth watered day
-  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
-  CHECK(m.tryHarvest(3, 2));
-  CHECK(m.produceCount() == 1);
+  REQUIRE_STAGE(m, 3, 2, CropStage::MATURE);
+  REQUIRE(m.tryHarvest(3, 2));
+  REQUIRE(m.produceCount() == 1);
 }
 
-static void harvest_soilWithoutACropIsRefused() {
+TEST_CASE("harvest_soilWithoutACropIsRefused") {
   GameModel m;
-  CHECK(m.tryTill(3, 2)); // tilled but empty
-  CHECK(!m.tryHarvest(3, 2));
-  CHECK(!m.tryHarvest(6, 2)); // ordinary untilled ground
-  CHECK(m.produceCount() == 0);
-  CHECK(m.isTilled(3, 2));
+  REQUIRE(m.tryTill(3, 2)); // tilled but empty
+  REQUIRE(!m.tryHarvest(3, 2));
+  REQUIRE(!m.tryHarvest(6, 2)); // ordinary untilled ground
+  REQUIRE(m.produceCount() == 0);
+  REQUIRE(m.isTilled(3, 2));
 }
 
-static void harvest_everyObstacleIsRefused() {
+TEST_CASE("harvest_everyObstacleIsRefused") {
   GameModel m;
   int obstaclesTried = 0;
   for (int row = 0; row < m.mapHeight(); ++row) {
     for (int column = 0; column < m.mapWidth(); ++column) {
       if (m.tileAt(column, row) == TileType::OBSTACLE) {
-        CHECK(!m.tryHarvest(column, row));
+        REQUIRE(!m.tryHarvest(column, row));
         ++obstaclesTried;
       }
     }
   }
-  CHECK(obstaclesTried == 23);
-  CHECK(m.produceCount() == 0);
+  REQUIRE(obstaclesTried == 23);
+  REQUIRE(m.produceCount() == 0);
 }
 
-static void harvest_outOfBoundsIsRefused() {
+TEST_CASE("harvest_outOfBoundsIsRefused") {
   GameModel m;
-  CHECK(!m.tryHarvest(-1, 0));
-  CHECK(!m.tryHarvest(0, -1));
-  CHECK(!m.tryHarvest(-1, -1));
-  CHECK(!m.tryHarvest(GameModel::kMapWidth, 0));
-  CHECK(!m.tryHarvest(0, GameModel::kMapHeight));
-  CHECK(!m.tryHarvest(GameModel::kMapWidth, GameModel::kMapHeight));
-  CHECK(m.produceCount() == 0);
+  REQUIRE(!m.tryHarvest(-1, 0));
+  REQUIRE(!m.tryHarvest(0, -1));
+  REQUIRE(!m.tryHarvest(-1, -1));
+  REQUIRE(!m.tryHarvest(GameModel::kMapWidth, 0));
+  REQUIRE(!m.tryHarvest(0, GameModel::kMapHeight));
+  REQUIRE(!m.tryHarvest(GameModel::kMapWidth, GameModel::kMapHeight));
+  REQUIRE(m.produceCount() == 0);
 }
 
 // Flat-array trap: (20,0) is index 20 = tile (0,1); (-1,1) is index 19 = tile
 // (19,0). Both hold MATURE crops here, so a missing bounds check would harvest
 // them instead of rejecting the off-map attempt.
-static void harvest_outOfBoundsNeverTouchesAnotherCrop() {
+TEST_CASE("harvest_outOfBoundsNeverTouchesAnotherCrop") {
   GameModel m;
   growToMature(m, 0, 1);
   growToMature(m, 19, 0);
-  CHECK(!m.tryHarvest(GameModel::kMapWidth, 0));
-  CHECK(!m.tryHarvest(-1, 1));
-  CHECK_STAGE(m, 0, 1, CropStage::MATURE);
-  CHECK_STAGE(m, 19, 0, CropStage::MATURE);
-  CHECK(m.produceCount() == 0);
+  REQUIRE(!m.tryHarvest(GameModel::kMapWidth, 0));
+  REQUIRE(!m.tryHarvest(-1, 1));
+  REQUIRE_STAGE(m, 0, 1, CropStage::MATURE);
+  REQUIRE_STAGE(m, 19, 0, CropStage::MATURE);
+  REQUIRE(m.produceCount() == 0);
 }
 
-static void harvest_sameTileCannotBeHarvestedTwice() {
+TEST_CASE("harvest_sameTileCannotBeHarvestedTwice") {
   GameModel m;
   growToMature(m, 3, 2);
-  CHECK(m.tryHarvest(3, 2));
-  CHECK(!m.tryHarvest(3, 2));
-  CHECK(!m.tryHarvest(3, 2));
-  CHECK(m.produceCount() == 1); // one crop, one unit
+  REQUIRE(m.tryHarvest(3, 2));
+  REQUIRE(!m.tryHarvest(3, 2));
+  REQUIRE(!m.tryHarvest(3, 2));
+  REQUIRE(m.produceCount() == 1); // one crop, one unit
 }
 
-static void harvest_failedAttemptsDoNotChangeState() {
+TEST_CASE("harvest_failedAttemptsDoNotChangeState") {
   GameModel m;
   growToMature(m, 3, 2);
-  tillAndPlant(m, 4, 2);                         // a seed beside it
-  CHECK(!m.tryHarvest(4, 2));                    // seed
-  CHECK(!m.tryHarvest(6, 2));                    // untilled ground
-  CHECK(!m.tryHarvest(5, 1));                    // obstacle
-  CHECK(!m.tryHarvest(-1, 0));                   // off the map
-  CHECK(!m.tryHarvest(GameModel::kMapWidth, 0)); // off the map
-  CHECK(m.produceCount() == 0);
-  CHECK_STAGE(m, 3, 2, CropStage::MATURE);
-  CHECK_STAGE(m, 4, 2, CropStage::SEED);
+  tillAndPlant(m, 4, 2);                           // a seed beside it
+  REQUIRE(!m.tryHarvest(4, 2));                    // seed
+  REQUIRE(!m.tryHarvest(6, 2));                    // untilled ground
+  REQUIRE(!m.tryHarvest(5, 1));                    // obstacle
+  REQUIRE(!m.tryHarvest(-1, 0));                   // off the map
+  REQUIRE(!m.tryHarvest(GameModel::kMapWidth, 0)); // off the map
+  REQUIRE(m.produceCount() == 0);
+  REQUIRE_STAGE(m, 3, 2, CropStage::MATURE);
+  REQUIRE_STAGE(m, 4, 2, CropStage::SEED);
 }
 
-static void harvest_countAccumulatesAcrossCrops() {
+TEST_CASE("harvest_countAccumulatesAcrossCrops") {
   GameModel m;
   tillAndPlant(m, 3, 2);
   tillAndPlant(m, 4, 2);
   tillAndPlant(m, 3, 3);
   for (int day = 0; day < kDaysToMature; ++day) {
-    CHECK(m.tryWater(3, 2));
-    CHECK(m.tryWater(4, 2));
-    CHECK(m.tryWater(3, 3));
+    REQUIRE(m.tryWater(3, 2));
+    REQUIRE(m.tryWater(4, 2));
+    REQUIRE(m.tryWater(3, 3));
     m.advanceDay();
   }
-  CHECK(m.tryHarvest(3, 2));
-  CHECK(m.produceCount() == 1);
-  CHECK(m.tryHarvest(4, 2));
-  CHECK(m.produceCount() == 2);
-  CHECK(m.tryHarvest(3, 3));
-  CHECK(m.produceCount() == 3);
+  REQUIRE(m.tryHarvest(3, 2));
+  REQUIRE(m.produceCount() == 1);
+  REQUIRE(m.tryHarvest(4, 2));
+  REQUIRE(m.produceCount() == 2);
+  REQUIRE(m.tryHarvest(3, 3));
+  REQUIRE(m.produceCount() == 3);
 }
 
-static void harvest_onlyTheTargetedCropIsRemoved() {
+TEST_CASE("harvest_onlyTheTargetedCropIsRemoved") {
   GameModel m;
   tillAndPlant(m, 3, 2);
   tillAndPlant(m, 4, 2);
   for (int day = 0; day < kDaysToMature; ++day) {
-    CHECK(m.tryWater(3, 2));
-    CHECK(m.tryWater(4, 2));
+    REQUIRE(m.tryWater(3, 2));
+    REQUIRE(m.tryWater(4, 2));
     m.advanceDay();
   }
-  CHECK(m.tryHarvest(3, 2));
-  CHECK_STAGE(m, 3, 2, CropStage::NONE);
-  CHECK_STAGE(m, 4, 2, CropStage::MATURE); // the neighbour is untouched
-  CHECK(countPlanted(m) == 1);
-  CHECK(!m.isPlanted(2, 3)); // what a swapped (column,row) index would hit
-  CHECK(m.produceCount() == 1);
+  REQUIRE(m.tryHarvest(3, 2));
+  REQUIRE_STAGE(m, 3, 2, CropStage::NONE);
+  REQUIRE_STAGE(m, 4, 2, CropStage::MATURE); // the neighbour is untouched
+  REQUIRE(countPlanted(m) == 1);
+  REQUIRE(!m.isPlanted(2, 3)); // what a swapped (column,row) index would hit
+  REQUIRE(m.produceCount() == 1);
 }
 
-static void harvest_emptiedTileCannotBeWateredOrHarvested() {
+TEST_CASE("harvest_emptiedTileCannotBeWateredOrHarvested") {
   GameModel m;
   growToMature(m, 3, 2);
-  CHECK(m.tryHarvest(3, 2));
-  CHECK(!m.tryWater(3, 2));
-  CHECK(!m.isWateredToday(3, 2));
-  CHECK(!m.tryHarvest(3, 2));
-  CHECK(m.produceCount() == 1);
+  REQUIRE(m.tryHarvest(3, 2));
+  REQUIRE(!m.tryWater(3, 2));
+  REQUIRE(!m.isWateredToday(3, 2));
+  REQUIRE(!m.tryHarvest(3, 2));
+  REQUIRE(m.produceCount() == 1);
 }
 
 // Removing the crop must also remove its "watered today" state.
-static void harvest_removedCropLeavesNoWateredStateBehind() {
+TEST_CASE("harvest_removedCropLeavesNoWateredStateBehind") {
   GameModel m;
   growToMature(m, 3, 2);
   m.tryWater(3, 2); // watered today (result not asserted: see growth tests)
-  CHECK(m.tryHarvest(3, 2));
-  CHECK(!m.isWateredToday(3, 2));
-  CHECK(m.tryPlant(3, 2)); // soil is still tilled
-  CHECK(!m.isWateredToday(3, 2));
-  CHECK(m.tryWater(3, 2)); // the NEW crop is dry and can be watered
+  REQUIRE(m.tryHarvest(3, 2));
+  REQUIRE(!m.isWateredToday(3, 2));
+  REQUIRE(m.tryPlant(3, 2)); // soil is still tilled
+  REQUIRE(!m.isWateredToday(3, 2));
+  REQUIRE(m.tryWater(3, 2)); // the NEW crop is dry and can be watered
 }
 
-static void harvest_replantedCropStartsAsAFreshSeed() {
+TEST_CASE("harvest_replantedCropStartsAsAFreshSeed") {
   GameModel m;
   growToMature(m, 3, 2);
-  CHECK(m.tryHarvest(3, 2));
-  CHECK(m.tryPlant(3, 2)); // no tryTill needed: the soil stayed tilled
-  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+  REQUIRE(m.tryHarvest(3, 2));
+  REQUIRE(m.tryPlant(3, 2)); // no tryTill needed: the soil stayed tilled
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED);
 
   waterDays(m, 3, 2, kDaysToSprout - 1);
-  CHECK_STAGE(m, 3, 2, CropStage::SEED);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED);
   waterAndAdvance(m, 3, 2);
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT);
   waterDays(m, 3, 2, kDaysToMature - kDaysToSprout - 1);
-  CHECK_STAGE(m, 3, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT);
   waterAndAdvance(m, 3, 2);
-  CHECK_STAGE(m, 3, 2, CropStage::MATURE); // full 3 + 3 days again
+  REQUIRE_STAGE(m, 3, 2, CropStage::MATURE); // full 3 + 3 days again
 
-  CHECK(m.tryHarvest(3, 2));
-  CHECK(m.produceCount() == 2);
+  REQUIRE(m.tryHarvest(3, 2));
+  REQUIRE(m.produceCount() == 2);
 }
 
-static void harvest_playerCanWalkOverHarvestedSoil() {
+TEST_CASE("harvest_playerCanWalkOverHarvestedSoil") {
   GameModel m;
   growToMature(m, 2, 1);
   growToMature(m, 3, 1);
   growToMature(m, 4, 1);
-  CHECK(m.tryHarvest(2, 1));
-  CHECK(m.tryHarvest(3, 1));
-  CHECK(m.tryHarvest(4, 1));
+  REQUIRE(m.tryHarvest(2, 1));
+  REQUIRE(m.tryHarvest(3, 1));
+  REQUIRE(m.tryHarvest(4, 1));
   MOVE(m, Direction::RIGHT, 3); // (4,1), over three emptied tiles
-  CHECK_POS(m, 4, 1);
+  REQUIRE_POS(m, 4, 1);
   MOVE(m, Direction::LEFT, 3);
-  CHECK_POS(m, 1, 1);
-  CHECK(m.produceCount() == 3);
-  CHECK(m.isTilled(3, 1)); // walking does not undo the soil
+  REQUIRE_POS(m, 1, 1);
+  REQUIRE(m.produceCount() == 3);
+  REQUIRE(m.isTilled(3, 1)); // walking does not undo the soil
 }
 
-static void harvest_doesNotMoveOrTurnThePlayer() {
+TEST_CASE("harvest_doesNotMoveOrTurnThePlayer") {
   GameModel m;
   growToMature(m, 3, 2);
   MOVE(m, Direction::RIGHT, 1); // (2,1), facing RIGHT
-  CHECK(m.tryHarvest(3, 2));
-  CHECK_POS(m, 2, 1);
-  CHECK_FACING(m, Direction::RIGHT);
+  REQUIRE(m.tryHarvest(3, 2));
+  REQUIRE_POS(m, 2, 1);
+  REQUIRE_FACING(m, Direction::RIGHT);
 }
 
-static void harvest_advanceDayDoesNotChangeTheProduceCount() {
+TEST_CASE("harvest_advanceDayDoesNotChangeTheProduceCount") {
   GameModel m;
   growToMature(m, 3, 2);
-  CHECK(m.tryHarvest(3, 2));
+  REQUIRE(m.tryHarvest(3, 2));
   advanceDays(m, 5);
-  CHECK(m.produceCount() == 1);
-  CHECK_STAGE(m, 3, 2, CropStage::NONE); // no crop regrows by itself
+  REQUIRE(m.produceCount() == 1);
+  REQUIRE_STAGE(m, 3, 2, CropStage::NONE); // no crop regrows by itself
 }
 
 // The way the SDL layer will use it: target = tileInFront().
-static void harvest_worksWithTileInFront() {
+TEST_CASE("harvest_worksWithTileInFront") {
   GameModel m; // (1,1), facing DOWN
   const TilePosition front = m.tileInFront();
   tillAndPlant(m, front.column, front.row);
   waterDays(m, front.column, front.row, kDaysToMature);
-  CHECK(m.tryHarvest(front.column, front.row));
-  CHECK(m.produceCount() == 1);
-  CHECK(m.isTilled(1, 2));
+  REQUIRE(m.tryHarvest(front.column, front.row));
+  REQUIRE(m.produceCount() == 1);
+  REQUIRE(m.isTilled(1, 2));
 
   GameModel bare; // front tile is plain ground: nothing to harvest
   const TilePosition target = bare.tileInFront();
-  CHECK(!bare.tryHarvest(target.column, target.row));
-  CHECK(bare.produceCount() == 0);
+  REQUIRE(!bare.tryHarvest(target.column, target.row));
+  REQUIRE(bare.produceCount() == 0);
 }
 
-static void harvest_eachModelHasItsOwnCount() {
+TEST_CASE("harvest_eachModelHasItsOwnCount") {
   GameModel a;
   GameModel b;
   growToMature(a, 3, 2);
-  CHECK(a.tryHarvest(3, 2));
-  CHECK(a.produceCount() == 1);
-  CHECK(b.produceCount() == 0);
+  REQUIRE(a.tryHarvest(3, 2));
+  REQUIRE(a.produceCount() == 1);
+  REQUIRE(b.produceCount() == 0);
 }
 
 // ---------------------------------------------------------------------------
-// Each existing scenario is an independently executed Catch2 section.
-// ---------------------------------------------------------------------------
-
-#define RUN(test) SECTION(#test) { test(); }
-
-TEST_CASE("GameModel behavior") {
-  RUN(mapDimensionsAre20By15);
-
-  RUN(isInBounds_cornersAreInside);
-  RUN(isInBounds_negativeCoordinatesAreOutside);
-  RUN(isInBounds_pastTheFarEdgeIsOutside);
-
-  RUN(tileAt_openGroundIsGround);
-  RUN(tileAt_wallTilesAreObstacles);
-  RUN(tileAt_tilesBesideWallsAreGround);
-  RUN(tileAt_totalObstacleCountIs23);
-  RUN(tileAt_outOfBoundsIsObstacle);
-  RUN(tileAt_borderIsAllGround);
-
-  RUN(start_positionIsColumn1Row1);
-  RUN(start_isInBoundsAndOnGround);
-  RUN(start_eachModelHasItsOwnState);
-
-  RUN(move_upDecreasesRowByOne);
-  RUN(move_downIncreasesRowByOne);
-  RUN(move_leftDecreasesColumnByOne);
-  RUN(move_rightIncreasesColumnByOne);
-  RUN(move_oppositeMovesCancelOut);
-  RUN(move_squarePathReturnsToStart);
-  RUN(move_longWalkAcrossOpenGroundWorks);
-
-  RUN(obstacle_blocksMovingRight);
-  RUN(obstacle_blocksMovingDown);
-  RUN(obstacle_blocksMovingUp);
-  RUN(obstacle_blocksMovingLeft);
-  RUN(obstacle_blockedFromTheLeftSide);
-  RUN(obstacle_repeatedBlockedMovesNeverChangePosition);
-  RUN(obstacle_canMoveAwayAfterBeingBlocked);
-
-  RUN(edge_topBlocksMovingUp);
-  RUN(edge_leftBlocksMovingLeft);
-  RUN(edge_bottomBlocksMovingDown);
-  RUN(edge_rightBlocksMovingRight);
-  RUN(corner_topLeftBlocksUpAndLeft);
-  RUN(corner_bottomRightBlocksDownAndRight);
-
-  RUN(facing_startsDown);
-  RUN(facing_successfulMoveUpTurnsUp);
-  RUN(facing_successfulMoveLeftTurnsLeft);
-  RUN(facing_successfulMoveRightTurnsRight);
-  RUN(facing_successfulMoveDownTurnsDown);
-  RUN(facing_followsTheLastRequestedDirection);
-  RUN(facing_blockedByObstacleStillTurns);
-  RUN(facing_blockedFromBelowStillTurnsUp);
-  RUN(facing_blockedByMapEdgeStillTurns);
-  RUN(facing_followsEachBlockedAttemptOnTheSameTile);
-  RUN(facing_invalidDirectionIsIgnored);
-  RUN(facing_eachModelHasItsOwnFacing);
-
-  RUN(tileInFront_atStartIsTheTileBelow);
-  RUN(tileInFront_facingUpIsRowMinusOne);
-  RUN(tileInFront_facingDownIsRowPlusOne);
-  RUN(tileInFront_facingLeftIsColumnMinusOne);
-  RUN(tileInFront_facingRightIsColumnPlusOne);
-  RUN(tileInFront_pastTopEdgeIsReturnedUnclamped);
-  RUN(tileInFront_pastLeftEdgeIsReturnedUnclamped);
-  RUN(tileInFront_pastBottomEdgeIsReturnedUnclamped);
-  RUN(tileInFront_pastRightEdgeIsReturnedUnclamped);
-  RUN(tileInFront_returnsAnObstacleTileWithoutJudgingIt);
-  RUN(tileInFront_doesNotChangePositionOrFacing);
-  RUN(tileInFront_followsThePlayerAfterSuccessfulMoves);
-  RUN(tileInFront_afterBlockedMoveStaysOnTheWall);
-  RUN(tileInFront_afterBlockedMoveUsesTheNewFacing);
-  RUN(tileInFront_afterBlockedMoveAtMapEdgeIsOffTheMap);
-
-  RUN(tilling_everyTileStartsUntilled);
-  RUN(tilling_validGroundSucceeds);
-  RUN(tilling_sameTileCannotBeTilledTwice);
-  RUN(tilling_everyObstacleRejectsTilling);
-  RUN(tilling_outOfBoundsRejectsTilling);
-  RUN(tilling_outOfBoundsNeverTouchesAnotherTile);
-  RUN(isTilled_outOfBoundsIsFalseBesideTilledTiles);
-  RUN(tilling_tilledTileRemainsGround);
-  RUN(tilling_neverChangesTerrainOnAnyTile);
-  RUN(tilling_changesOnlyTheTargetTile);
-  RUN(tilling_failedAttemptsDoNotChangeState);
-  RUN(tilling_playerCanWalkAcrossTilledGround);
-  RUN(tilling_worksWithTileInFront);
-  RUN(tilling_tileInFrontThatCannotBeTilledIsRejected);
-  RUN(tilling_eachModelHasItsOwnFarmState);
-
-  RUN(planting_everyTileStartsEmpty);
-  RUN(planting_tilledEmptySoilSucceeds);
-  RUN(planting_untilledGroundFails);
-  RUN(planting_everyObstacleRejects);
-  RUN(planting_sameTileCannotBePlantedTwice);
-  RUN(planting_outOfBoundsFails);
-  RUN(planting_outOfBoundsNeverTouchesAnotherTile);
-  RUN(isPlanted_outOfBoundsIsFalseBesidePlantedTiles);
-  RUN(planting_tilledSoilRemainsTilled);
-  RUN(planting_terrainRemainsGround);
-  RUN(planting_changesOnlyTheTargetTile);
-  RUN(planting_failedAttemptsDoNotChangeState);
-  RUN(planting_cropSurvivesAFailedTill);
-  RUN(planting_playerCanWalkOverPlantedSoil);
-  RUN(planting_worksWithTileInFront);
-  RUN(planting_tileInFrontThatCannotBePlantedIsRejected);
-  RUN(planting_eachModelHasItsOwnCrops);
-
-  RUN(watering_noCropMeansStageNoneAndNotWatered);
-  RUN(watering_plantedCropStartsAsADrySeed);
-  RUN(watering_plantedCropCanBeWatered);
-  RUN(watering_soilWithoutACropRejects);
-  RUN(watering_everyObstacleRejects);
-  RUN(watering_outOfBoundsRejects);
-  RUN(watering_queriesOffTheMapAreFalseOrNone);
-  RUN(watering_outOfBoundsNeverTouchesAnotherCrop);
-  RUN(watering_queriesOffTheMapIgnoreCropsAtAliasedTiles);
-  RUN(watering_sameCropCannotBeWateredTwiceInOneDay);
-  RUN(watering_failedAttemptsDoNotChangeState);
-  RUN(watering_onlyTheTargetedCropGetsWater);
-  RUN(advanceDay_clearsWateringSoCropsCanBeWateredAgain);
-  RUN(advanceDay_onAFarmWithNoCropsChangesNothing);
-  RUN(growth_wateringAloneDoesNotGrowAndOneDayIsNotEnough);
-  RUN(growth_thirdWateredDayMakesASprout);
-  RUN(growth_sproutStaysASproutUntilTheSixthWateredDay);
-  RUN(growth_sixthWateredDayMakesItMature);
-  RUN(growth_matureCropStaysMature);
-  RUN(growth_cropsGrowIndependently);
-  RUN(growth_cropPlantedLaterStartsAsASeed);
-  RUN(growth_unwateredDaysDoNotGrowTheCrop);
-  RUN(growth_missedDayPausesButDoesNotResetProgress);
-  RUN(advanceDay_leavesTerrainTillingPlantingAndPlayerUnchanged);
-  RUN(growth_playerCanStillWalkOverGrownCrops);
-  RUN(watering_worksWithTileInFront);
-  RUN(watering_eachModelHasItsOwnState);
-
-  RUN(harvest_produceCountStartsAtZero);
-  RUN(harvest_matureCropSucceedsAndCountsOne);
-  RUN(harvest_keepsTheSoilTilledAndTheTerrainGround);
-  RUN(harvest_seedAndSproutAreRefusedUntilTheSixthWateredDay);
-  RUN(harvest_soilWithoutACropIsRefused);
-  RUN(harvest_everyObstacleIsRefused);
-  RUN(harvest_outOfBoundsIsRefused);
-  RUN(harvest_outOfBoundsNeverTouchesAnotherCrop);
-  RUN(harvest_sameTileCannotBeHarvestedTwice);
-  RUN(harvest_failedAttemptsDoNotChangeState);
-  RUN(harvest_countAccumulatesAcrossCrops);
-  RUN(harvest_onlyTheTargetedCropIsRemoved);
-  RUN(harvest_emptiedTileCannotBeWateredOrHarvested);
-  RUN(harvest_removedCropLeavesNoWateredStateBehind);
-  RUN(harvest_replantedCropStartsAsAFreshSeed);
-  RUN(harvest_playerCanWalkOverHarvestedSoil);
-  RUN(harvest_doesNotMoveOrTurnThePlayer);
-  RUN(harvest_advanceDayDoesNotChangeTheProduceCount);
-  RUN(harvest_worksWithTileInFront);
-  RUN(harvest_eachModelHasItsOwnCount);
-
-  RUN(randomWalk_alwaysObeysTheRules);
-
-}
