@@ -7,8 +7,8 @@
 
 namespace {
 
-constexpr int kWindowWidth = 800;
-constexpr int kWindowHeight = 648;
+constexpr int kWindowWidth = 960;
+constexpr int kWindowHeight = 800;
 
 } // namespace
 
@@ -37,6 +37,16 @@ int main() {
 
     if (!SDL_SetRenderVSync(renderPointer, 1)) {
         std::cerr << "VSync could not be enabled: " << SDL_GetError() << '\n';
+    }
+
+    // Render the existing 800x664 logical scene at 1.2x in the larger window.
+    // This enlarges tiles, characters and the HUD without changing their layout.
+    if (!SDL_SetRenderScale(renderPointer, 1.2f, 1.2f)) {
+        std::cerr << "Unable to set render scale: " << SDL_GetError() << '\n';
+        SDL_DestroyRenderer(renderPointer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
     }
 
     farmstead::GameModel model;
@@ -96,6 +106,9 @@ int main() {
                         if (model.isWateredToday(target.column, target.row)) {
                             std::cout << ", WATERED TODAY";
                         }
+                    }
+                    else if (type == farmstead::TileType::MARKET) {
+                        std::cout << "MARKET (press S to sell all produce)";
                     }
                     else {
                         std::cout << "OBSTACLE";
@@ -166,6 +179,29 @@ int main() {
                     }
                     else {
                         std::cout << "Cannot harvest. The tile needs a mature crop.\n";
+                    }
+                    break;
+                }
+
+                case SDLK_S: {
+                    const int quantity = model.produceCount();
+                    if (quantity <= 0) {
+                        std::cout << "You have no produce to sell.\n";
+                    }
+                    else if (!model.isFacingMarket()) {
+                        std::cout << "Face the market counter to sell your produce.\n";
+                    }
+                    else {
+                        const int coinsBefore = model.coins();
+                        if (model.trySellProduce(quantity)) {
+                            const int saleValue = model.coins() - coinsBefore;
+                            std::cout << "Sold " << quantity << " produce for "
+                                      << saleValue << " coins. Balance: "
+                                      << model.coins() << ".\n";
+                        }
+                        else {
+                            std::cout << "The sale could not be completed.\n";
+                        }
                     }
                     break;
                 }
