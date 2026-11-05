@@ -114,6 +114,19 @@ TEST_CASE("tileAt_openGroundIsGround") {
   REQUIRE_TILE(m, 19, 14, TileType::GROUND);
 }
 
+TEST_CASE("tileAt_marketFootprintContainsSixMarketTiles") {
+  GameModel m;
+  REQUIRE(GameModel::kMarketFootprint.size() == 6);
+  for (const TilePosition &position : GameModel::kMarketFootprint) {
+    INFO("market footprint tile (" << position.column << ", " << position.row
+                                   << ")");
+    REQUIRE_TILE(m, position.column, position.row, TileType::MARKET);
+  }
+  REQUIRE_TILE(m, 10, 5, TileType::GROUND);
+  REQUIRE_TILE(m, 8, 3, TileType::GROUND);
+  REQUIRE_TILE(m, 13, 3, TileType::OBSTACLE);
+}
+
 TEST_CASE("tileAt_wallTilesAreObstacles") {
   GameModel m;
   const TilePosition walls[] = {
@@ -254,6 +267,54 @@ TEST_CASE("move_longWalkAcrossOpenGroundWorks") {
   MOVE(m, Direction::DOWN, 4);   // (1,5)   column 1 is clear
   MOVE(m, Direction::RIGHT, 18); // (19,5)  row 5 is clear
   REQUIRE_POS(m, 19, 5);
+}
+
+TEST_CASE("marketFootprint_blocksMovementIntoEveryMarketTile") {
+  for (const TilePosition &marketTile : GameModel::kMarketFootprint) {
+    GameModel m;
+    INFO("market tile (" << marketTile.column << ", " << marketTile.row
+                         << ")");
+    if (marketTile.row == 3) {
+      MOVE(m, Direction::UP, 1);
+      MOVE(m, Direction::RIGHT, marketTile.column - 1);
+      MOVE(m, Direction::DOWN, 2);
+      REQUIRE_FALSE(m.tryMove(Direction::DOWN));
+      REQUIRE_POS(m, marketTile.column, 2);
+    } else {
+      MOVE(m, Direction::DOWN, 4);
+      MOVE(m, Direction::RIGHT, marketTile.column - 1);
+      REQUIRE_FALSE(m.tryMove(Direction::UP));
+      REQUIRE_POS(m, marketTile.column, 5);
+    }
+  }
+}
+
+TEST_CASE("marketInteractionStandTileIsWalkableGround") {
+  GameModel m;
+  MOVE(m, Direction::DOWN, 4);
+  MOVE(m, Direction::RIGHT, 9);
+  REQUIRE_POS(m, 10, 5);
+  REQUIRE(m.tryMove(Direction::RIGHT));
+  REQUIRE_POS(m, 11, 5);
+  REQUIRE_TILE(m, 10, 5, TileType::GROUND);
+  REQUIRE_TILE(m, 11, 5, TileType::GROUND);
+}
+
+TEST_CASE("market_isFacingRequiresTheDesignatedTileInFront") {
+  GameModel m;
+  REQUIRE_FALSE(m.isFacingMarket());
+
+  MOVE(m, Direction::DOWN, 4);
+  MOVE(m, Direction::RIGHT, 9);
+  REQUIRE_POS(m, 10, 5);
+  REQUIRE_FALSE(m.tryMove(Direction::UP));
+  REQUIRE(m.facingDirection() == Direction::UP);
+  REQUIRE(m.tileInFront() == GameModel::kMarketInteractionPosition);
+  REQUIRE(m.isFacingMarket());
+
+  REQUIRE(m.tryMove(Direction::LEFT));
+  REQUIRE_POS(m, 9, 5);
+  REQUIRE_FALSE(m.isFacingMarket());
 }
 
 // ---------------------------------------------------------------------------
@@ -794,6 +855,20 @@ TEST_CASE("tilling_tilledTileRemainsGround") {
   GameModel m;
   REQUIRE(m.tryTill(3, 2));
   REQUIRE_TILE(m, 3, 2, TileType::GROUND);
+}
+
+TEST_CASE("tilling_marketFootprintRejectsEveryMarketTile") {
+  GameModel m;
+  for (const TilePosition &marketTile : GameModel::kMarketFootprint) {
+    INFO("market tile (" << marketTile.column << ", " << marketTile.row
+                         << ")");
+    REQUIRE_FALSE(m.tryTill(marketTile.column, marketTile.row));
+    REQUIRE_FALSE(m.isTilled(marketTile.column, marketTile.row));
+    REQUIRE_FALSE(m.tryPlant(marketTile.column, marketTile.row));
+    REQUIRE_FALSE(m.isPlanted(marketTile.column, marketTile.row));
+  }
+  REQUIRE(m.tryTill(3, 2));
+  REQUIRE(m.tryPlant(3, 2));
 }
 
 TEST_CASE("tilling_neverChangesTerrainOnAnyTile") {

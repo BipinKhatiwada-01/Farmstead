@@ -67,10 +67,14 @@ void faceMarket(GameModel &model) {
   for (int step = 0; step < 4; ++step) {
     REQUIRE(model.tryMove(Direction::DOWN));
   }
-  for (int step = 0; step < 8; ++step) {
+  for (int step = 0; step < 9; ++step) {
     REQUIRE(model.tryMove(Direction::RIGHT));
   }
-  REQUIRE(model.tileInFront() == GameModel::kMarketPosition);
+  REQUIRE(model.playerPosition() == TilePosition{10, 5});
+  REQUIRE_FALSE(model.tryMove(Direction::UP));
+  REQUIRE(model.facingDirection() == Direction::UP);
+  REQUIRE(model.tileInFront() == GameModel::kMarketInteractionPosition);
+  REQUIRE(model.isFacingMarket());
 }
 
 } // namespace
@@ -166,6 +170,22 @@ TEST_CASE("Failed sales leave inventory, coins, and progression unchanged") {
   SECTION("quantity above inventory is rejected") {
     REQUIRE_FALSE(model.trySellProduce(produceBefore + 1));
   }
+
+  REQUIRE(model.produceCount() == produceBefore);
+  REQUIRE(model.coins() == coinsBefore);
+  REQUIRE(model.coinsEarned() == coinsEarnedBefore);
+}
+
+TEST_CASE("Selling while not facing the market leaves state unchanged") {
+  GameModel model;
+  harvestProduce(model, 1);
+  REQUIRE_FALSE(model.isFacingMarket());
+
+  const int produceBefore = model.produceCount();
+  const int coinsBefore = model.coins();
+  const int coinsEarnedBefore = model.coinsEarned();
+
+  REQUIRE_FALSE(model.trySellProduce(1));
 
   REQUIRE(model.produceCount() == produceBefore);
   REQUIRE(model.coins() == coinsBefore);
