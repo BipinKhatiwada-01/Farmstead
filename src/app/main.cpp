@@ -2,8 +2,8 @@
 
 #include <iostream>
 
-#include "../include/farmstead/game_model.hpp"
-#include "../include/farmstead/renderer.hpp"
+#include "farmstead/game_model.hpp"
+#include "farmstead/renderer.hpp"
 
 namespace {
 

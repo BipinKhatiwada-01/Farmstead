@@ -1,4 +1,4 @@
-#include "../include/farmstead/Inventory.hpp"
+#include "farmstead/Inventory.hpp"
 
 #include <limits>
 

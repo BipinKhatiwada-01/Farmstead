@@ -1,4 +1,4 @@
-#include "../../include/farmstead/renderer.hpp"
+#include "farmstead/renderer.hpp"
 
 #include <algorithm>
 #include <cmath>

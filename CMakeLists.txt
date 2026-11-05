@@ -1,3 +1,4 @@
+
 cmake_minimum_required(VERSION 3.20)
 
 project(Farmstead LANGUAGES CXX)
@@ -9,11 +10,11 @@ find_package(SDL3 REQUIRED CONFIG)
 # Core game logic (independent of SDL)
 add_library(
     farmstead-core
-    src/game_model.cpp
-    src/Crop.cpp
-    src/Inventory.cpp
-    src/Economy.cpp
-    src/Progression.cpp
+    src/game/game_model.cpp
+    src/game/Crop.cpp
+    src/game/Inventory.cpp
+    src/game/Economy.cpp
+    src/game/Progression.cpp
 )
 
 target_include_directories(
@@ -31,7 +32,7 @@ set_target_properties(farmstead-core PROPERTIES
 # Game executable
 add_executable(
     farmstead
-    src/main.cpp
+    src/app/main.cpp
     src/render/renderer.cpp
 )
 
@@ -66,131 +67,40 @@ if(BUILD_TESTING)
     list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
     include(Catch)
 
-    # GameModel tests
-    add_executable(
+    # Helper for consistently configuring Catch2 test executables.
+    function(add_farmstead_test target_name test_source)
+        add_executable(${target_name} ${test_source})
+
+        target_link_libraries(
+            ${target_name}
+            PRIVATE
+                farmstead-core
+                Catch2::Catch2WithMain
+        )
+
+        target_compile_features(${target_name} PRIVATE cxx_std_20)
+
+        set_target_properties(${target_name} PROPERTIES
+            CXX_EXTENSIONS OFF
+        )
+
+        catch_discover_tests(${target_name})
+    endfunction()
+
+    # Integration tests
+    add_farmstead_test(
         farmstead-tests
-        tests/game_model_test.cpp
+        tests/integration/game_model_test.cpp
     )
 
-    target_link_libraries(
-        farmstead-tests
-        PRIVATE
-            farmstead-core
-            Catch2::Catch2WithMain
-    )
-
-    target_compile_features(farmstead-tests PRIVATE cxx_std_20)
-
-    set_target_properties(farmstead-tests PROPERTIES
-        CXX_EXTENSIONS OFF
-    )
-
-    catch_discover_tests(farmstead-tests)
-
-
-    # economy_integration tests
-    add_executable(
+    add_farmstead_test(
         economy-integration-tests
-        tests/game_model/economy_integration_test.cpp
+        tests/integration/economy_integration_test.cpp
     )
 
-    target_link_libraries(
-        economy-integration-tests
-        PRIVATE
-            farmstead-core
-            Catch2::Catch2WithMain
-    )
-
-    target_compile_features(economy-integration-tests PRIVATE cxx_std_20)
-
-    set_target_properties(economy-integration-tests PROPERTIES
-        CXX_EXTENSIONS OFF
-    )
-
-    catch_discover_tests(economy-integration-tests)
-
-    # Crop tests
-    add_executable(
-        crop-tests
-        tests/crop_test.cpp
-    )
-
-    target_link_libraries(
-        crop-tests
-        PRIVATE
-            farmstead-core
-            Catch2::Catch2WithMain
-    )
-
-    target_compile_features(crop-tests PRIVATE cxx_std_20)
-
-    set_target_properties(crop-tests PROPERTIES
-        CXX_EXTENSIONS OFF
-    )
-
-    catch_discover_tests(crop-tests)
-
-    # Inventory tests
-    add_executable(
-        inventory-tests
-        tests/inventory_test.cpp
-    )
-
-    target_link_libraries(
-        inventory-tests
-        PRIVATE
-            farmstead-core
-            Catch2::Catch2WithMain
-    )
-
-    target_compile_features(inventory-tests PRIVATE cxx_std_20)
-
-    set_target_properties(inventory-tests PROPERTIES
-        CXX_EXTENSIONS OFF
-    )
-
-    catch_discover_tests(inventory-tests)
-
-    # Economy tests
-    add_executable(
-        economy-tests
-        tests/economy_test.cpp
-    )
-
-    target_link_libraries(
-        economy-tests
-        PRIVATE
-            farmstead-core
-            Catch2::Catch2WithMain
-    )
-
-    target_compile_features(economy-tests PRIVATE cxx_std_20)
-
-    set_target_properties(economy-tests PROPERTIES
-        CXX_EXTENSIONS OFF
-    )
-
-    catch_discover_tests(economy-tests)
-
-    # Progression tests
-    add_executable(
-        progression-tests
-        tests/progression_test.cpp
-    )
-
-    target_link_libraries(
-        progression-tests
-        PRIVATE
-            farmstead-core
-            Catch2::Catch2WithMain
-    )
-
-    target_compile_features(progression-tests PRIVATE cxx_std_20)
-
-    set_target_properties(progression-tests PROPERTIES
-        CXX_EXTENSIONS OFF
-    )
-
-    catch_discover_tests(progression-tests)
-
+    # Unit tests
+    add_farmstead_test(crop-tests tests/unit/crop_test.cpp)
+    add_farmstead_test(economy-tests tests/unit/economy_test.cpp)
+    add_farmstead_test(inventory-tests tests/unit/inventory_test.cpp)
+    add_farmstead_test(progression-tests tests/unit/progression_test.cpp)
 endif()

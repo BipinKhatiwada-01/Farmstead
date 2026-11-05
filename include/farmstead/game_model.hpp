@@ -19,7 +19,7 @@
 //             draw a rectangle for tileAt(column, row), then draw the player
 //             at playerPosition(). The model is only read while drawing.
 
-#include "Crop.hpp"
+#include "farmstead/Crop.hpp"
 #include "farmstead/Economy.hpp"
 #include "farmstead/Inventory.hpp"
 #include "farmstead/Progression.hpp"

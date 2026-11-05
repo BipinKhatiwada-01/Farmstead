@@ -1,4 +1,4 @@
-#include "../include/farmstead/Progression.hpp"
+#include "farmstead/Progression.hpp"
 #include "catch2/catch_test_macros.hpp"
 
 TEST_CASE("check initial values") {

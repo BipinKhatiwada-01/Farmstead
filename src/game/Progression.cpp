@@ -1,4 +1,4 @@
-#include "../include/farmstead/Progression.hpp"
+#include "farmstead/Progression.hpp"
 
 #include <limits>
 

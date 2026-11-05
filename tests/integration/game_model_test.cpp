@@ -29,7 +29,7 @@
 //   - column 1, row 5, row 9 and row 0 are all ground (used as walking routes)
 //   - (14,8) is an isolated obstacle: all four neighbours are ground
 
-#include "../include/farmstead/game_model.hpp"
+#include "farmstead/game_model.hpp"
 #include "catch2/catch_test_macros.hpp"
 
 #include <catch2/catch_all.hpp>
