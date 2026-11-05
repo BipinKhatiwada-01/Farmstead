@@ -166,7 +166,10 @@ public:
   // market
   bool isFacingMarket() const;
 
-  static constexpr TilePosition kMarketPosition{10, 5};
+  static constexpr TilePosition kMarketInteractionPosition{10, 4};
+
+  static constexpr std::array<TilePosition, 6> kMarketFootprint{
+      {{9, 3}, {10, 3}, {11, 3}, {9, 4}, {10, 4}, {11, 4}}};
 
 private:
   // Flat index of a tile, row-major: row * kMapWidth + column.

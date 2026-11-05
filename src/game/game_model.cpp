@@ -42,8 +42,9 @@ GameModel::GameModel() : player(kStartPosition), facing(Direction::DOWN) {
       }
     }
   }
-  tiles[indexOf(kMarketPosition.column, kMarketPosition.row)] =
-      TileType::MARKET;
+  for (const TilePosition &position : kMarketFootprint) {
+    tiles[indexOf(position.column, position.row)] = TileType::MARKET;
+  }
 }
 
 std::size_t GameModel::indexOf(int column, int row) const {
@@ -124,8 +125,10 @@ bool GameModel::tryMove(Direction direction) {
   // outside the map
   if (!isInBounds(targetColumn, targetRow))
     return false;
-  // obstacle
-  if (tileAt(targetColumn, targetRow) == TileType::OBSTACLE)
+
+  // obstacle & market
+  TileType targetTile = tileAt(targetColumn, targetRow);
+  if (targetTile == TileType::OBSTACLE || targetTile == TileType::MARKET)
     return false;
 
   player = {targetColumn, targetRow};
@@ -288,7 +291,7 @@ bool GameModel::trySellProduce(int quantity) {
 }
 
 bool GameModel::isFacingMarket() const {
-  return tileInFront() == kMarketPosition;
+  return tileInFront() == kMarketInteractionPosition;
 }
 
 } // namespace farmstead
