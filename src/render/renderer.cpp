@@ -574,15 +574,16 @@ void drawHud(SDL_Renderer* renderer, const GameModel& model,
 
 } // namespace
 
-void renderWorld(SDL_Renderer* renderer, const GameModel& model,
-                 std::string_view message, HudMessageTone messageTone) {
+namespace {
+
+void drawWorldFrame(SDL_Renderer* renderer, const GameModel& model,
+                    std::string_view message, HudMessageTone messageTone) {
     SDL_SetRenderDrawColor(renderer, 31, 47, 43, 255);
     SDL_RenderClear(renderer);
 
     drawHud(renderer, model, message, messageTone);
 
-    // First pass: terrain. Market tiles have a timber base; tree tiles retain
-    // grass beneath their canopy and trunk artwork.
+    // First pass: terrain. Market and farmhouse tiles use their own foundations.
     for (int row = 0; row < model.mapHeight(); ++row) {
         for (int column = 0; column < model.mapWidth(); ++column) {
             const TileType type = model.tileAt(column, row);
@@ -618,8 +619,7 @@ void renderWorld(SDL_Renderer* renderer, const GameModel& model,
     const TilePosition farmhouseTopLeft = GameModel::kFarmhouseFootprint.front();
     drawFarmhouse(renderer, farmhouseTopLeft.column, farmhouseTopLeft.row);
 
-    // Highlight the tile occupied by the player. Draw the outline first so
-    // the player sprite appears on top of it, with the border still visible.
+    // The selection outline sits under the player sprite.
     const TilePosition playerTile = model.playerPosition();
     if (model.isInBounds(playerTile.column, playerTile.row)) {
         SDL_SetRenderDrawColor(renderer, 246, 224, 160, 255);
@@ -628,6 +628,234 @@ void renderWorld(SDL_Renderer* renderer, const GameModel& model,
     }
 
     drawPlayer(renderer, playerTile, model.facingDirection());
+}
+
+void drawWoodPanel(SDL_Renderer* renderer, const SDL_FRect& rect) {
+    const SDL_FRect shadow{rect.x + 4.0f, rect.y + 5.0f, rect.w, rect.h};
+    const SDL_FRect inset{rect.x + 5.0f, rect.y + 5.0f,
+                          rect.w - 10.0f, rect.h - 10.0f};
+    const SDL_FRect topHighlight{rect.x + 7.0f, rect.y + 7.0f,
+                                 rect.w - 14.0f, 2.0f};
+
+    fillRect(renderer, shadow, 24, 23, 19, 220);
+    fillRect(renderer, rect, 48, 31, 23, 255);
+    fillRect(renderer, inset, 112, 73, 47, 255);
+    SDL_SetRenderDrawColor(renderer, 204, 161, 91, 255);
+    SDL_RenderRect(renderer, &rect);
+    fillRect(renderer, topHighlight, 193, 150, 99, 255);
+
+    const SDL_FRect lowerRail{rect.x + 7.0f, rect.y + rect.h - 10.0f,
+                              rect.w - 14.0f, 2.0f};
+    fillRect(renderer, lowerRail, 76, 47, 31, 255);
+}
+
+void drawMenuOption(SDL_Renderer* renderer, const SDL_FRect& rect,
+                    const char* label, bool selected) {
+    if (selected) {
+        fillRect(renderer, rect, 193, 145, 78, 255);
+        const SDL_FRect inner{rect.x + 2.0f, rect.y + 2.0f,
+                              rect.w - 4.0f, rect.h - 4.0f};
+        fillRect(renderer, inner, 128, 82, 48, 255);
+        SDL_SetRenderDrawColor(renderer, 235, 203, 146, 255);
+        SDL_RenderRect(renderer, &rect);
+        const SDL_FRect marker{rect.x + 10.0f, rect.y + 9.0f, 4.0f, 8.0f};
+        fillRect(renderer, marker, 241, 209, 150, 255);
+        SDL_SetRenderDrawColor(renderer, 250, 235, 205, 255);
+    } else {
+        fillRect(renderer, rect, 88, 56, 37, 255);
+        SDL_SetRenderDrawColor(renderer, 211, 187, 151, 255);
+        SDL_RenderRect(renderer, &rect);
+        SDL_SetRenderDrawColor(renderer, 239, 222, 190, 255);
+    }
+
+    SDL_RenderDebugText(renderer, rect.x + 25.0f, rect.y + 10.0f, label);
+}
+
+void drawDimOverlay(SDL_Renderer* renderer) {
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    const SDL_FRect veil{0.0f, 0.0f, 800.0f, 664.0f};
+    fillRect(renderer, veil, 20, 23, 19, 178);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+}
+
+} // namespace
+
+void renderWorld(SDL_Renderer* renderer, const GameModel& model,
+                 std::string_view message, HudMessageTone messageTone) {
+    drawWorldFrame(renderer, model, message, messageTone);
+    SDL_RenderPresent(renderer);
+}
+
+void renderTitleScreen(SDL_Renderer* renderer, int selectedOption) {
+    SDL_SetRenderDrawColor(renderer, 30, 49, 42, 255);
+    SDL_RenderClear(renderer);
+
+    // A quiet countryside backdrop, built from the same geometric language as
+    // the in-game world so the title screen feels like part of Farmstead.
+    const SDL_FRect sky{0.0f, 0.0f, 800.0f, 360.0f};
+    const SDL_FRect distantHill{0.0f, 265.0f, 800.0f, 120.0f};
+    const SDL_FRect middleHill{0.0f, 305.0f, 800.0f, 110.0f};
+    const SDL_FRect field{0.0f, 350.0f, 800.0f, 314.0f};
+    fillRect(renderer, sky, 64, 93, 77, 255);
+    fillRect(renderer, distantHill, 78, 113, 74, 255);
+    fillRect(renderer, middleHill, 58, 91, 62, 255);
+    fillRect(renderer, field, 43, 125, 66, 255);
+
+    const SDL_FRect sunOuter{620.0f, 82.0f, 54.0f, 54.0f};
+    const SDL_FRect sunInner{627.0f, 89.0f, 40.0f, 40.0f};
+    fillRect(renderer, sunOuter, 217, 174, 105, 255);
+    fillRect(renderer, sunInner, 238, 206, 145, 255);
+
+    // Soft field bands and furrows give the foreground some depth.
+    for (int row = 0; row < 5; ++row) {
+        const float y = 390.0f + static_cast<float>(row) * 49.0f;
+        const SDL_FRect band{0.0f, y, 800.0f, 2.0f};
+        fillRect(renderer, band, 54, 139, 72, 255);
+        for (int column = 0; column < 10; ++column) {
+            const float x = static_cast<float>(column) * 86.0f +
+                            static_cast<float>((row % 2) * 30);
+            const SDL_FRect furrow{x, y + 13.0f, 58.0f, 3.0f};
+            fillRect(renderer, furrow, 34, 105, 57, 255);
+        }
+    }
+
+    // Background silhouettes: trees at the edge and the farmhouse to the right.
+    drawTree(renderer, 1, 7);
+    drawTree(renderer, 3, 8);
+    drawTree(renderer, 18, 7);
+    drawFarmhouse(renderer, 13, 6);
+
+    // A restrained wooden title plaque.
+    const SDL_FRect titlePanel{174.0f, 73.0f, 452.0f, 139.0f};
+    drawWoodPanel(renderer, titlePanel);
+    const SDL_FRect titleInner{189.0f, 88.0f, 422.0f, 109.0f};
+    fillRect(renderer, titleInner, 82, 51, 34, 255);
+
+    // Small sprout mark.
+    const SDL_FRect sproutStem{270.0f, 122.0f, 4.0f, 31.0f};
+    const SDL_FRect sproutLeafLeft{249.0f, 112.0f, 22.0f, 12.0f};
+    const SDL_FRect sproutLeafRight{274.0f, 119.0f, 24.0f, 13.0f};
+    fillRect(renderer, sproutStem, 202, 171, 111, 255);
+    fillRect(renderer, sproutLeafLeft, 133, 173, 104, 255);
+    fillRect(renderer, sproutLeafRight, 94, 145, 81, 255);
+
+    SDL_SetRenderDrawColor(renderer, 248, 231, 197, 255);
+    SDL_RenderDebugText(renderer, 319.0f, 117.0f, "F A R M S T E A D");
+    SDL_SetRenderDrawColor(renderer, 216, 190, 151, 255);
+    SDL_RenderDebugText(renderer, 293.0f, 151.0f,
+                        "A SMALL LIFE ON THE LAND");
+
+    // Main menu panel and keyboard navigation.
+    const SDL_FRect menuPanel{270.0f, 333.0f, 260.0f, 160.0f};
+    drawWoodPanel(renderer, menuPanel);
+    SDL_SetRenderDrawColor(renderer, 245, 226, 191, 255);
+    SDL_RenderDebugText(renderer, 347.0f, 354.0f, "BEGIN YOUR STORY");
+
+    const SDL_FRect newFarmOption{300.0f, 382.0f, 200.0f, 34.0f};
+    const SDL_FRect quitOption{300.0f, 427.0f, 200.0f, 34.0f};
+    drawMenuOption(renderer, newFarmOption, "NEW FARM", selectedOption == 0);
+    drawMenuOption(renderer, quitOption, "QUIT", selectedOption == 1);
+
+    SDL_SetRenderDrawColor(renderer, 239, 222, 190, 255);
+    SDL_RenderDebugText(renderer, 288.0f, 535.0f,
+                        "ARROWS SELECT     ENTER CONFIRM");
+    SDL_SetRenderDrawColor(renderer, 186, 166, 133, 255);
+    SDL_RenderDebugText(renderer, 326.0f, 618.0f,
+                        "FARMSTEAD  -  A LITTLE PLACE TO CALL HOME");
+
+    SDL_RenderPresent(renderer);
+}
+
+void renderPauseMenu(SDL_Renderer* renderer, const GameModel& model,
+                     int selectedOption, bool confirming,
+                     std::string_view confirmationMessage,
+                     int confirmationSelection,
+                     std::string_view hudMessage,
+                     HudMessageTone messageTone) {
+    drawWorldFrame(renderer, model, hudMessage, messageTone);
+    drawDimOverlay(renderer);
+
+    if (confirming) {
+        const SDL_FRect panel{188.0f, 201.0f, 424.0f, 252.0f};
+        drawWoodPanel(renderer, panel);
+        SDL_SetRenderDrawColor(renderer, 248, 231, 197, 255);
+        SDL_RenderDebugText(renderer, 309.0f, 230.0f, "ARE YOU SURE?");
+
+        std::string message(confirmationMessage);
+        SDL_SetRenderDrawColor(renderer, 250, 225, 188, 255);
+        SDL_RenderDebugText(renderer, 220.0f, 274.0f, message.c_str());
+        SDL_SetRenderDrawColor(renderer, 220, 190, 151, 255);
+        SDL_RenderDebugText(renderer, 270.0f, 307.0f,
+                            "UNSAVED PROGRESS WILL BE LOST");
+
+        const SDL_FRect yesOption{266.0f, 355.0f, 112.0f, 36.0f};
+        const SDL_FRect noOption{422.0f, 355.0f, 112.0f, 36.0f};
+        drawMenuOption(renderer, yesOption, "YES", confirmationSelection == 0);
+        drawMenuOption(renderer, noOption, "NO", confirmationSelection == 1);
+
+        SDL_SetRenderDrawColor(renderer, 220, 190, 151, 255);
+        SDL_RenderDebugText(renderer, 278.0f, 420.0f,
+                            "LEFT/RIGHT SELECT     ENTER CONFIRM");
+    } else {
+        const SDL_FRect panel{235.0f, 153.0f, 330.0f, 365.0f};
+        drawWoodPanel(renderer, panel);
+        SDL_SetRenderDrawColor(renderer, 248, 231, 197, 255);
+        SDL_RenderDebugText(renderer, 365.0f, 181.0f, "PAUSED");
+        SDL_SetRenderDrawColor(renderer, 214, 187, 148, 255);
+        SDL_RenderDebugText(renderer, 295.0f, 207.0f,
+                            "TAKE A BREATHER, FARMER");
+
+        const SDL_FRect resumeOption{275.0f, 246.0f, 250.0f, 36.0f};
+        const SDL_FRect restartOption{275.0f, 291.0f, 250.0f, 36.0f};
+        const SDL_FRect titleOption{275.0f, 336.0f, 250.0f, 36.0f};
+        const SDL_FRect quitOption{275.0f, 381.0f, 250.0f, 36.0f};
+        drawMenuOption(renderer, resumeOption, "RESUME", selectedOption == 0);
+        drawMenuOption(renderer, restartOption, "RESTART FARM", selectedOption == 1);
+        drawMenuOption(renderer, titleOption, "RETURN TO TITLE", selectedOption == 2);
+        drawMenuOption(renderer, quitOption, "QUIT GAME", selectedOption == 3);
+
+        SDL_SetRenderDrawColor(renderer, 220, 190, 151, 255);
+        SDL_RenderDebugText(renderer, 298.0f, 455.0f,
+                            "UP/DOWN SELECT     ENTER CONFIRM");
+        SDL_RenderDebugText(renderer, 349.0f, 473.0f, "ESC RESUME");
+    }
+
+    SDL_RenderPresent(renderer);
+}
+
+void renderVictoryOverlay(SDL_Renderer* renderer, const GameModel& model,
+                          std::string_view message) {
+    drawWorldFrame(renderer, model, message, HudMessageTone::SUCCESS);
+    drawDimOverlay(renderer);
+
+    const SDL_FRect panel{174.0f, 192.0f, 452.0f, 270.0f};
+    drawWoodPanel(renderer, panel);
+    const SDL_FRect inner{190.0f, 208.0f, 420.0f, 238.0f};
+    fillRect(renderer, inner, 91, 61, 39, 255);
+
+    // A small harvest emblem above the completion heading.
+    const SDL_FRect stem{396.0f, 231.0f, 4.0f, 21.0f};
+    const SDL_FRect leafLeft{380.0f, 232.0f, 17.0f, 9.0f};
+    const SDL_FRect leafRight{400.0f, 237.0f, 17.0f, 9.0f};
+    fillRect(renderer, stem, 209, 177, 115, 255);
+    fillRect(renderer, leafLeft, 145, 182, 111, 255);
+    fillRect(renderer, leafRight, 101, 151, 83, 255);
+
+    SDL_SetRenderDrawColor(renderer, 250, 234, 204, 255);
+    SDL_RenderDebugText(renderer, 323.0f, 271.0f, "OBJECTIVE COMPLETE");
+    SDL_SetRenderDrawColor(renderer, 243, 213, 155, 255);
+    SDL_RenderDebugTextFormat(renderer, 301.0f, 309.0f,
+                              "YOU EARNED %d COINS", model.coinsEarned());
+    SDL_SetRenderDrawColor(renderer, 222, 198, 165, 255);
+    SDL_RenderDebugText(renderer, 282.0f, 351.0f,
+                        "YOUR LITTLE FARM HAS PAID OFF");
+
+    const SDL_FRect continueOption{276.0f, 390.0f, 248.0f, 34.0f};
+    drawMenuOption(renderer, continueOption, "CONTINUE FARMING", true);
+    SDL_SetRenderDrawColor(renderer, 218, 190, 151, 255);
+    SDL_RenderDebugText(renderer, 316.0f, 438.0f,
+                        "PRESS ENTER TO CONTINUE");
+
     SDL_RenderPresent(renderer);
 }
 
