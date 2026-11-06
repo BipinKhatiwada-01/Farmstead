@@ -34,6 +34,7 @@ add_executable(
     farmstead
     src/app/main.cpp
     src/render/renderer.cpp
+    src/audio/audio_system.cpp
 )
 
 target_link_libraries(

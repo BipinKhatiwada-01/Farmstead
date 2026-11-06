@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 
+#include "farmstead/audio_system.hpp"
 #include "farmstead/game_model.hpp"
 #include "farmstead/renderer.hpp"
 
@@ -77,6 +78,11 @@ int main() {
         return 1;
     }
 
+    farmstead::AudioSystem audio;
+    if (!audio.initialize()) {
+        std::cerr << "Audio unavailable; continuing silently: " << SDL_GetError() << '\n';
+    }
+
     farmstead::GameModel model;
     ApplicationState applicationState = ApplicationState::TITLE;
     PauseAction pendingPauseAction = PauseAction::NONE;
@@ -128,23 +134,28 @@ int main() {
                 if (key == SDLK_UP) {
                     titleSelection = wrapSelection(titleSelection, -1,
                                                    kTitleOptionCount);
+                    audio.play(farmstead::SoundEffect::MENU_MOVE);
                 } else if (key == SDLK_DOWN) {
                     titleSelection = wrapSelection(titleSelection, 1,
                                                    kTitleOptionCount);
+                    audio.play(farmstead::SoundEffect::MENU_MOVE);
                 } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
                            key == SDLK_SPACE) {
+                    audio.play(farmstead::SoundEffect::MENU_CONFIRM);
                     if (titleSelection == 0) {
                         startNewFarm();
                     } else {
                         running = false;
                     }
                 } else if (key == SDLK_ESCAPE) {
+                    audio.play(farmstead::SoundEffect::MENU_MOVE);
                     running = false;
                 }
                 break;
 
             case ApplicationState::PLAYING:
                 if (key == SDLK_ESCAPE) {
+                    audio.play(farmstead::SoundEffect::MENU_CONFIRM);
                     applicationState = ApplicationState::PAUSED;
                     pauseSelection = 0;
                     pendingPauseAction = PauseAction::NONE;
@@ -162,6 +173,9 @@ int main() {
                     if (key == SDLK_UP)    direction = farmstead::Direction::UP;
 
                     const bool moved = model.tryMove(direction);
+                    if (moved) {
+                        audio.play(farmstead::SoundEffect::FOOTSTEP);
+                    }
                     if (model.isFacingMarket()) {
                         setHudMessage("MARKET COUNTER  -  PRESS S TO SELL ALL PRODUCE",
                                       farmstead::render::HudMessageTone::INFO);
@@ -231,6 +245,7 @@ int main() {
                 case SDLK_T: {
                     const farmstead::TilePosition target = model.playerPosition();
                     if (model.tryTill(target.column, target.row)) {
+                        audio.play(farmstead::SoundEffect::TILL);
                         setHudMessage("SOIL PREPARED  -  PRESS P TO PLANT",
                                       farmstead::render::HudMessageTone::SUCCESS);
                     } else {
@@ -243,6 +258,7 @@ int main() {
                 case SDLK_P: {
                     const farmstead::TilePosition target = model.playerPosition();
                     if (model.tryPlant(target.column, target.row)) {
+                        audio.play(farmstead::SoundEffect::PLANT);
                         setHudMessage("SEED PLANTED  -  WATER IT TO HELP IT GROW",
                                       farmstead::render::HudMessageTone::SUCCESS);
                     } else {
@@ -255,6 +271,7 @@ int main() {
                 case SDLK_W: {
                     const farmstead::TilePosition target = model.playerPosition();
                     if (model.tryWater(target.column, target.row)) {
+                        audio.play(farmstead::SoundEffect::WATER);
                         setHudMessage("CROP WATERED",
                                       farmstead::render::HudMessageTone::SUCCESS);
                     } else {
@@ -267,6 +284,7 @@ int main() {
                 case SDLK_N:
                     // Development shortcut. Normal gameplay advances the day by sleeping.
                     model.advanceDay();
+                    audio.play(farmstead::SoundEffect::SLEEP);
                     setHudMessage("DEVELOPER SHORTCUT  -  DAY " +
                                       std::to_string(model.currentDay()) + " BEGINS",
                                   farmstead::render::HudMessageTone::INFO);
@@ -274,6 +292,7 @@ int main() {
 
                 case SDLK_B:
                     if (model.trySleep()) {
+                        audio.play(farmstead::SoundEffect::SLEEP);
                         setHudMessage("YOU RESTED WELL  -  DAY " +
                                           std::to_string(model.currentDay()) + " BEGINS",
                                       farmstead::render::HudMessageTone::SUCCESS);
@@ -286,6 +305,7 @@ int main() {
                 case SDLK_H: {
                     const farmstead::TilePosition target = model.playerPosition();
                     if (model.tryHarvest(target.column, target.row)) {
+                        audio.play(farmstead::SoundEffect::HARVEST);
                         setHudMessage("HARVESTED  -  PRODUCE ADDED TO YOUR BAG",
                                       farmstead::render::HudMessageTone::SUCCESS);
                     } else {
@@ -308,11 +328,13 @@ int main() {
                         if (model.trySellProduce(quantity)) {
                             const int saleValue = model.coins() - coinsBefore;
                             if (model.objectiveCompleted()) {
+                                audio.play(farmstead::SoundEffect::OBJECTIVE_COMPLETE);
                                 setHudMessage("OBJECTIVE COMPLETE  -  YOU EARNED " +
                                                   std::to_string(model.coinsEarned()) + " COINS",
                                               farmstead::render::HudMessageTone::SUCCESS);
                                 applicationState = ApplicationState::VICTORY;
                             } else {
+                                audio.play(farmstead::SoundEffect::SELL);
                                 setHudMessage("SOLD " + std::to_string(quantity) +
                                                   " PRODUCE  -  EARNED " +
                                                   std::to_string(saleValue) + " COINS",
@@ -334,12 +356,15 @@ int main() {
             case ApplicationState::PAUSED:
                 if (pendingPauseAction != PauseAction::NONE) {
                     if (key == SDLK_ESCAPE) {
+                        audio.play(farmstead::SoundEffect::MENU_MOVE);
                         pendingPauseAction = PauseAction::NONE;
                     } else if (key == SDLK_LEFT || key == SDLK_RIGHT ||
                                key == SDLK_UP || key == SDLK_DOWN) {
                         confirmationSelection = 1 - confirmationSelection;
+                        audio.play(farmstead::SoundEffect::MENU_MOVE);
                     } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
                                key == SDLK_SPACE) {
+                        audio.play(farmstead::SoundEffect::MENU_CONFIRM);
                         if (confirmationSelection == 1) {
                             pendingPauseAction = PauseAction::NONE;
                             break;
@@ -368,15 +393,19 @@ int main() {
                 }
 
                 if (key == SDLK_ESCAPE) {
+                    audio.play(farmstead::SoundEffect::MENU_CONFIRM);
                     applicationState = ApplicationState::PLAYING;
                 } else if (key == SDLK_UP) {
                     pauseSelection = wrapSelection(pauseSelection, -1,
                                                    kPauseOptionCount);
+                    audio.play(farmstead::SoundEffect::MENU_MOVE);
                 } else if (key == SDLK_DOWN) {
                     pauseSelection = wrapSelection(pauseSelection, 1,
                                                    kPauseOptionCount);
+                    audio.play(farmstead::SoundEffect::MENU_MOVE);
                 } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
                            key == SDLK_SPACE) {
+                    audio.play(farmstead::SoundEffect::MENU_CONFIRM);
                     switch (pauseSelection) {
                     case 0:
                         applicationState = ApplicationState::PLAYING;
@@ -399,12 +428,29 @@ int main() {
             case ApplicationState::VICTORY:
                 if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
                     key == SDLK_SPACE || key == SDLK_ESCAPE) {
+                    audio.play(farmstead::SoundEffect::MENU_CONFIRM);
                     applicationState = ApplicationState::PLAYING;
                     hudMessage.clear();
                 }
                 break;
             }
         }
+
+        switch (applicationState) {
+        case ApplicationState::TITLE:
+            audio.setAmbienceGain(0.34f);
+            break;
+        case ApplicationState::PLAYING:
+            audio.setAmbienceGain(0.42f);
+            break;
+        case ApplicationState::PAUSED:
+            audio.setAmbienceGain(0.20f);
+            break;
+        case ApplicationState::VICTORY:
+            audio.setAmbienceGain(0.30f);
+            break;
+        }
+        audio.update();
 
         switch (applicationState) {
         case ApplicationState::TITLE:
@@ -447,6 +493,7 @@ int main() {
         }
     }
 
+    audio.shutdown();
     SDL_DestroyRenderer(renderPointer);
     SDL_DestroyWindow(window);
     SDL_Quit();
