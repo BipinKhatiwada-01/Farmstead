@@ -1,6 +1,8 @@
 #include <SDL3/SDL.h>
 
 #include <iostream>
+#include <string>
+#include <utility>
 
 #include "farmstead/game_model.hpp"
 #include "farmstead/renderer.hpp"
@@ -39,8 +41,7 @@ int main() {
         std::cerr << "VSync could not be enabled: " << SDL_GetError() << '\n';
     }
 
-    // Render the existing 800x664 logical scene at 1.2x in the larger window.
-    // This enlarges tiles, characters and the HUD without changing their layout.
+    // Keep the game's 800x664 logical layout and scale it to the 960x800 window.
     if (!SDL_SetRenderScale(renderPointer, 1.2f, 1.2f)) {
         std::cerr << "Unable to set render scale: " << SDL_GetError() << '\n';
         SDL_DestroyRenderer(renderPointer);
@@ -52,11 +53,19 @@ int main() {
     farmstead::GameModel model;
     int currentDay = 1;
     bool running = true;
+    std::string hudMessage;
+    farmstead::render::HudMessageTone hudMessageTone =
+        farmstead::render::HudMessageTone::INFO;
+
+    const auto setHudMessage = [&](std::string message,
+                                   farmstead::render::HudMessageTone tone) {
+        hudMessage = std::move(message);
+        hudMessageTone = tone;
+    };
 
     while (running) {
         SDL_Event event;
 
-        // Handle all pending events before drawing the next frame.
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
@@ -64,100 +73,94 @@ int main() {
             else if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
                 switch (event.key.key) {
                 case SDLK_RIGHT:
-                    model.tryMove(farmstead::Direction::RIGHT);
-                    break;
                 case SDLK_LEFT:
-                    model.tryMove(farmstead::Direction::LEFT);
-                    break;
                 case SDLK_UP:
-                    model.tryMove(farmstead::Direction::UP);
+                case SDLK_DOWN: {
+                    farmstead::Direction direction = farmstead::Direction::DOWN;
+                    if (event.key.key == SDLK_RIGHT) direction = farmstead::Direction::RIGHT;
+                    if (event.key.key == SDLK_LEFT)  direction = farmstead::Direction::LEFT;
+                    if (event.key.key == SDLK_UP)    direction = farmstead::Direction::UP;
+
+                    const bool moved = model.tryMove(direction);
+                    if (moved) {
+                        hudMessage.clear();
+                    } else if (model.isFacingMarket()) {
+                        setHudMessage("MARKET COUNTER  -  PRESS S TO SELL ALL PRODUCE",
+                                      farmstead::render::HudMessageTone::INFO);
+                    } else {
+                        setHudMessage("THAT WAY IS BLOCKED",
+                                      farmstead::render::HudMessageTone::WARNING);
+                    }
                     break;
-                case SDLK_DOWN:
-                    model.tryMove(farmstead::Direction::DOWN);
-                    break;
+                }
 
                 case SDLK_E: {
                     const farmstead::TilePosition target = model.tileInFront();
                     if (!model.isInBounds(target.column, target.row)) {
-                        std::cout << "Nothing there - outside the map.\n";
+                        setHudMessage("NOTHING THERE - OUTSIDE THE MAP",
+                                      farmstead::render::HudMessageTone::WARNING);
                         break;
                     }
 
                     const farmstead::TileType type =
                         model.tileAt(target.column, target.row);
-                    std::cout << "Tile (" << target.column << ", "
-                              << target.row << "): ";
-                    if (type == farmstead::TileType::GROUND) {
-                        std::cout << "GROUND";
-                        if (model.isTilled(target.column, target.row)) {
-                            std::cout << ", TILLED";
-                        }
-                        const farmstead::CropStage stage =
-                            model.cropStageAt(target.column, target.row);
-                        if (stage == farmstead::CropStage::SEED) {
-                            std::cout << ", SEED";
-                        }
-                        else if (stage == farmstead::CropStage::SPROUT) {
-                            std::cout << ", SPROUT";
-                        }
-                        else if (stage == farmstead::CropStage::MATURE) {
-                            std::cout << ", MATURE";
-                        }
-                        if (model.isWateredToday(target.column, target.row)) {
-                            std::cout << ", WATERED TODAY";
-                        }
+                    if (type == farmstead::TileType::MARKET) {
+                        setHudMessage("MARKET COUNTER  -  PRESS S TO SELL ALL PRODUCE",
+                                      farmstead::render::HudMessageTone::INFO);
+                    } else if (type == farmstead::TileType::OBSTACLE) {
+                        setHudMessage("A TREE BLOCKS THE WAY",
+                                      farmstead::render::HudMessageTone::INFO);
+                    } else if (model.cropStageAt(target.column, target.row) ==
+                               farmstead::CropStage::MATURE) {
+                        setHudMessage("MATURE CROP  -  PRESS H TO HARVEST",
+                                      farmstead::render::HudMessageTone::SUCCESS);
+                    } else if (model.isPlanted(target.column, target.row)) {
+                        setHudMessage(model.isWateredToday(target.column, target.row)
+                                          ? "CROP WATERED TODAY"
+                                          : "CROP NEEDS WATER  -  PRESS W",
+                                      farmstead::render::HudMessageTone::INFO);
+                    } else if (model.isTilled(target.column, target.row)) {
+                        setHudMessage("TILLED SOIL  -  PRESS P TO PLANT",
+                                      farmstead::render::HudMessageTone::INFO);
+                    } else {
+                        setHudMessage("OPEN GROUND  -  PRESS T TO TILL",
+                                      farmstead::render::HudMessageTone::INFO);
                     }
-                    else if (type == farmstead::TileType::MARKET) {
-                        std::cout << "MARKET (press S to sell all produce)";
-                    }
-                    else {
-                        std::cout << "OBSTACLE";
-                    }
-                    std::cout << '\n';
                     break;
                 }
 
                 case SDLK_T: {
                     const farmstead::TilePosition target = model.tileInFront();
-                    if (!model.isInBounds(target.column, target.row)) {
-                        std::cout << "Cannot till: outside the map.\n";
-                    }
-                    else if (model.tryTill(target.column, target.row)) {
-                        std::cout << "Successfully tilled tile ("
-                                  << target.column << ", " << target.row << ").\n";
-                    }
-                    else {
-                        std::cout << "Cannot till this tile. It may be an obstacle or already tilled.\n";
+                    if (model.tryTill(target.column, target.row)) {
+                        setHudMessage("SOIL PREPARED  -  PRESS P TO PLANT",
+                                      farmstead::render::HudMessageTone::SUCCESS);
+                    } else {
+                        setHudMessage("CANNOT TILL HERE",
+                                      farmstead::render::HudMessageTone::WARNING);
                     }
                     break;
                 }
 
                 case SDLK_P: {
                     const farmstead::TilePosition target = model.tileInFront();
-                    if (!model.isInBounds(target.column, target.row)) {
-                        std::cout << "Cannot plant: outside the map.\n";
-                    }
-                    else if (model.tryPlant(target.column, target.row)) {
-                        std::cout << "Successfully planted a seed at ("
-                                  << target.column << ", " << target.row << ").\n";
-                    }
-                    else {
-                        std::cout << "Cannot plant here. The tile must be empty, tilled ground.\n";
+                    if (model.tryPlant(target.column, target.row)) {
+                        setHudMessage("SEED PLANTED  -  WATER IT TO HELP IT GROW",
+                                      farmstead::render::HudMessageTone::SUCCESS);
+                    } else {
+                        setHudMessage("CANNOT PLANT HERE  -  PREPARE EMPTY SOIL FIRST",
+                                      farmstead::render::HudMessageTone::WARNING);
                     }
                     break;
                 }
 
                 case SDLK_W: {
                     const farmstead::TilePosition target = model.tileInFront();
-                    if (!model.isInBounds(target.column, target.row)) {
-                        std::cout << "Cannot water: outside the map.\n";
-                    }
-                    else if (model.tryWater(target.column, target.row)) {
-                        std::cout << "Watered crop at (" << target.column
-                                  << ", " << target.row << ").\n";
-                    }
-                    else {
-                        std::cout << "Cannot water here. There may be no crop, or it may already be watered today.\n";
+                    if (model.tryWater(target.column, target.row)) {
+                        setHudMessage("CROP WATERED",
+                                      farmstead::render::HudMessageTone::SUCCESS);
+                    } else {
+                        setHudMessage("NO WATERABLE CROP HERE",
+                                      farmstead::render::HudMessageTone::WARNING);
                     }
                     break;
                 }
@@ -165,20 +168,18 @@ int main() {
                 case SDLK_N:
                     model.advanceDay();
                     ++currentDay;
-                    std::cout << "A new day begins. Day " << currentDay << ".\n";
+                    setHudMessage("DAY " + std::to_string(currentDay) + " BEGINS",
+                                  farmstead::render::HudMessageTone::SUCCESS);
                     break;
 
                 case SDLK_H: {
                     const farmstead::TilePosition target = model.tileInFront();
-                    if (!model.isInBounds(target.column, target.row)) {
-                        std::cout << "Cannot harvest: outside the map.\n";
-                    }
-                    else if (model.tryHarvest(target.column, target.row)) {
-                        std::cout << "Harvested crop! Produce: "
-                                  << model.produceCount() << '\n';
-                    }
-                    else {
-                        std::cout << "Cannot harvest. The tile needs a mature crop.\n";
+                    if (model.tryHarvest(target.column, target.row)) {
+                        setHudMessage("HARVESTED  -  PRODUCE ADDED TO YOUR BAG",
+                                      farmstead::render::HudMessageTone::SUCCESS);
+                    } else {
+                        setHudMessage("CROP IS NOT READY TO HARVEST",
+                                      farmstead::render::HudMessageTone::WARNING);
                     }
                     break;
                 }
@@ -186,21 +187,28 @@ int main() {
                 case SDLK_S: {
                     const int quantity = model.produceCount();
                     if (quantity <= 0) {
-                        std::cout << "You have no produce to sell.\n";
-                    }
-                    else if (!model.isFacingMarket()) {
-                        std::cout << "Face the market counter to sell your produce.\n";
-                    }
-                    else {
+                        setHudMessage("YOUR BAG IS EMPTY  -  HARVEST SOME PRODUCE FIRST",
+                                      farmstead::render::HudMessageTone::WARNING);
+                    } else if (!model.isFacingMarket()) {
+                        setHudMessage("STAND AT THE MARKET COUNTER AND FACE THE STALL",
+                                      farmstead::render::HudMessageTone::WARNING);
+                    } else {
                         const int coinsBefore = model.coins();
                         if (model.trySellProduce(quantity)) {
                             const int saleValue = model.coins() - coinsBefore;
-                            std::cout << "Sold " << quantity << " produce for "
-                                      << saleValue << " coins. Balance: "
-                                      << model.coins() << ".\n";
-                        }
-                        else {
-                            std::cout << "The sale could not be completed.\n";
+                            if (model.objectiveCompleted()) {
+                                setHudMessage("OBJECTIVE COMPLETE  -  YOU EARNED " +
+                                                  std::to_string(model.coinsEarned()) + " COINS",
+                                              farmstead::render::HudMessageTone::SUCCESS);
+                            } else {
+                                setHudMessage("SOLD " + std::to_string(quantity) +
+                                                  " PRODUCE  -  EARNED " +
+                                                  std::to_string(saleValue) + " COINS",
+                                              farmstead::render::HudMessageTone::SUCCESS);
+                            }
+                        } else {
+                            setHudMessage("SALE COULD NOT BE COMPLETED",
+                                          farmstead::render::HudMessageTone::WARNING);
                         }
                     }
                     break;
@@ -212,7 +220,8 @@ int main() {
             }
         }
 
-        farmstead::render::renderWorld(renderPointer, model, currentDay);
+        farmstead::render::renderWorld(
+            renderPointer, model, currentDay, hudMessage, hudMessageTone);
     }
 
     SDL_DestroyRenderer(renderPointer);
