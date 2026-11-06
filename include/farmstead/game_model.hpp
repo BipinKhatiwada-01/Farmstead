@@ -34,6 +34,7 @@ enum class TileType {
   GROUND,   ///< Walkable.
   OBSTACLE, ///< Blocks movement. Also what tileAt() reports off the map.
   MARKET,
+  FARMHOUSE,
 };
 
 /// A direction for a one-tile move. UP/DOWN change the row, LEFT/RIGHT the
@@ -171,6 +172,25 @@ public:
   static constexpr std::array<TilePosition, 6> kMarketFootprint{
       {{9, 3}, {10, 3}, {11, 3}, {9, 4}, {10, 4}, {11, 4}}};
 
+  // farmhouse
+  bool isFacingFarmhouse() const;
+
+  static constexpr TilePosition kFarmhouseInteractionPosition{16, 7};
+
+  static constexpr std::array<TilePosition, 9> kFarmhouseFootprint{{{15, 5},
+                                                                    {16, 5},
+                                                                    {17, 5},
+                                                                    {15, 6},
+                                                                    {16, 6},
+                                                                    {17, 6},
+                                                                    {15, 7},
+                                                                    {16, 7},
+                                                                    {17, 7}}};
+
+  bool trySleep();
+
+  int currentDay() const;
+
 private:
   // Flat index of a tile, row-major: row * kMapWidth + column.
   // Precondition: (column, row) is in bounds; callers check isInBounds first.
@@ -195,6 +215,9 @@ private:
   Inventory inventory;
   Economy economy;
   Progression progression;
+
+  // day counter
+  int day = 1;
 };
 
 }; // namespace farmstead
