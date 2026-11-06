@@ -12,9 +12,9 @@
 //    2   .....#..............
 //    3   .....#.......##.....
 //    4   ............##......
-//    5   ....................
-//    6   ..##................
-//    7   ..##.........#......
+//    5   ...............FFF..
+//    6   ..##...........FFF..
+//    7   ..##.........#.FFF..
 //    8   ..............#.....
 //    9   ....................
 //   10   ......####..........
@@ -26,7 +26,7 @@
 // Facts the tests rely on (if you edit the map, update these tests):
 //   - 23 obstacles, listed in tileAt_wallTilesAreObstacles
 //   - the border (row 0, row 14, column 0, column 19) is all ground
-//   - column 1, row 5, row 9 and row 0 are all ground (used as walking routes)
+//   - column 1, row 9 and row 0 are all ground (used as walking routes)
 //   - (14,8) is an isolated obstacle: all four neighbours are ground
 
 #include "farmstead/game_model.hpp"
@@ -61,6 +61,38 @@ static void moveExactlyImpl(GameModel &m, Direction d, int steps) {
   }
 }
 #define MOVE(model, dir, steps) moveExactlyImpl((model), (dir), (steps))
+
+static void moveToFarmhouseWestSide(GameModel &m, int row) {
+  MOVE(m, Direction::DOWN, 4);
+  MOVE(m, Direction::RIGHT, 13);
+  MOVE(m, Direction::DOWN, row - 5);
+}
+
+static void moveToFarmhouseEastSide(GameModel &m, int row) {
+  MOVE(m, Direction::DOWN, 4);
+  MOVE(m, Direction::RIGHT, 13);
+  MOVE(m, Direction::UP, 1);
+  MOVE(m, Direction::RIGHT, 4);
+  MOVE(m, Direction::DOWN, row - 4);
+}
+
+static void moveToFarmhouseNorthSide(GameModel &m) {
+  MOVE(m, Direction::DOWN, 4);
+  MOVE(m, Direction::RIGHT, 13);
+  MOVE(m, Direction::UP, 1);
+  MOVE(m, Direction::RIGHT, 2);
+}
+
+static void moveToFarmhouseSouthSide(GameModel &m, int column) {
+  MOVE(m, Direction::DOWN, 8);
+  MOVE(m, Direction::RIGHT, column - 1);
+  MOVE(m, Direction::UP, 1);
+}
+
+static void moveToFarmhouseApproach(GameModel &m) {
+  moveToFarmhouseSouthSide(m, 16);
+  REQUIRE_POS(m, 16, 8);
+}
 
 // ---------------------------------------------------------------------------
 // Map dimensions
@@ -264,9 +296,9 @@ TEST_CASE("move_squarePathReturnsToStart") {
 
 TEST_CASE("move_longWalkAcrossOpenGroundWorks") {
   GameModel m;
-  MOVE(m, Direction::DOWN, 4);   // (1,5)   column 1 is clear
-  MOVE(m, Direction::RIGHT, 18); // (19,5)  row 5 is clear
-  REQUIRE_POS(m, 19, 5);
+  MOVE(m, Direction::DOWN, 8);   // (1,9)   column 1 is clear
+  MOVE(m, Direction::RIGHT, 18); // (19,9)  row 9 is clear
+  REQUIRE_POS(m, 19, 9);
 }
 
 TEST_CASE("marketFootprint_blocksMovementIntoEveryMarketTile") {
@@ -298,6 +330,138 @@ TEST_CASE("marketInteractionStandTileIsWalkableGround") {
   REQUIRE_POS(m, 11, 5);
   REQUIRE_TILE(m, 10, 5, TileType::GROUND);
   REQUIRE_TILE(m, 11, 5, TileType::GROUND);
+}
+
+// ---------------------------------------------------------------------------
+// Farmhouse and sleeping
+// ---------------------------------------------------------------------------
+
+TEST_CASE("farmhouseFootprintContainsNineFarmhouseTilesOnly") {
+  GameModel m;
+  REQUIRE(GameModel::kFarmhouseFootprint.size() == 9);
+  for (const TilePosition &position : GameModel::kFarmhouseFootprint) {
+    INFO("farmhouse tile (" << position.column << ", " << position.row
+                            << ")");
+    REQUIRE_TILE(m, position.column, position.row, TileType::FARMHOUSE);
+    REQUIRE_FALSE(m.isTilled(position.column, position.row));
+    REQUIRE_FALSE(m.isPlanted(position.column, position.row));
+    REQUIRE_FALSE(m.tryTill(position.column, position.row));
+    REQUIRE_FALSE(m.tryPlant(position.column, position.row));
+    REQUIRE_FALSE(m.isTilled(position.column, position.row));
+    REQUIRE_FALSE(m.isPlanted(position.column, position.row));
+  }
+
+  REQUIRE_TILE(m, 14, 5, TileType::GROUND);
+  REQUIRE_TILE(m, 18, 5, TileType::GROUND);
+  REQUIRE_TILE(m, 14, 6, TileType::GROUND);
+  REQUIRE_TILE(m, 18, 6, TileType::GROUND);
+  REQUIRE_TILE(m, 14, 7, TileType::GROUND);
+  REQUIRE_TILE(m, 18, 7, TileType::GROUND);
+  REQUIRE_TILE(m, 15, 4, TileType::GROUND);
+  REQUIRE_TILE(m, 16, 4, TileType::GROUND);
+  REQUIRE_TILE(m, 17, 4, TileType::GROUND);
+  REQUIRE_TILE(m, 15, 8, TileType::GROUND);
+  REQUIRE_TILE(m, 16, 8, TileType::GROUND);
+  REQUIRE_TILE(m, 17, 8, TileType::GROUND);
+}
+
+TEST_CASE("farmhouse_blocksMovementIntoEveryReachableFootprintTile") {
+  for (int row = 5; row <= 7; ++row) {
+    GameModel west;
+    moveToFarmhouseWestSide(west, row);
+    REQUIRE_POS(west, 14, row);
+    REQUIRE_FALSE(west.tryMove(Direction::RIGHT));
+    REQUIRE_POS(west, 14, row);
+
+    GameModel east;
+    moveToFarmhouseEastSide(east, row);
+    REQUIRE_POS(east, 18, row);
+    REQUIRE_FALSE(east.tryMove(Direction::LEFT));
+    REQUIRE_POS(east, 18, row);
+  }
+
+  GameModel north;
+  moveToFarmhouseNorthSide(north);
+  REQUIRE_POS(north, 16, 4);
+  REQUIRE_FALSE(north.tryMove(Direction::DOWN));
+  REQUIRE_POS(north, 16, 4);
+
+  for (int column = 15; column <= 17; ++column) {
+    GameModel south;
+    moveToFarmhouseSouthSide(south, column);
+    REQUIRE_POS(south, column, 8);
+    REQUIRE_FALSE(south.tryMove(Direction::UP));
+    REQUIRE_POS(south, column, 8);
+  }
+
+  GameModel m;
+  for (const TilePosition &neighbor :
+       std::array<TilePosition, 4>{{{15, 6}, {17, 6}, {16, 5}, {16, 7}}}) {
+    REQUIRE_TILE(m, neighbor.column, neighbor.row, TileType::FARMHOUSE);
+  }
+
+  GameModel approach;
+  moveToFarmhouseApproach(approach);
+  REQUIRE_TILE(approach, 16, 8, TileType::GROUND);
+  REQUIRE(approach.tryMove(Direction::DOWN));
+  REQUIRE_POS(approach, 16, 9);
+}
+
+TEST_CASE("farmhouseInteractionRequiresFacingTheBottomMiddleTile") {
+  GameModel m;
+  REQUIRE_FALSE(m.isFacingFarmhouse());
+
+  moveToFarmhouseApproach(m);
+  REQUIRE_FALSE(m.tryMove(Direction::UP));
+  REQUIRE(m.facingDirection() == Direction::UP);
+  REQUIRE(m.tileInFront() == GameModel::kFarmhouseInteractionPosition);
+  REQUIRE(m.isFacingFarmhouse());
+
+  REQUIRE(m.tryMove(Direction::LEFT));
+  REQUIRE_POS(m, 15, 8);
+  REQUIRE_FALSE(m.isFacingFarmhouse());
+  REQUIRE(m.tryMove(Direction::RIGHT));
+  REQUIRE_POS(m, 16, 8);
+  REQUIRE(m.facingDirection() == Direction::RIGHT);
+  REQUIRE_FALSE(m.isFacingFarmhouse());
+
+  REQUIRE(m.tryMove(Direction::DOWN));
+  REQUIRE_POS(m, 16, 9);
+  REQUIRE_FALSE(m.isFacingFarmhouse());
+}
+
+TEST_CASE("dayStartsAtOneAndAdvanceDayIncrementsExactlyOnce") {
+  GameModel m;
+  REQUIRE(m.currentDay() == 1);
+  m.advanceDay();
+  REQUIRE(m.currentDay() == 2);
+  m.advanceDay();
+  REQUIRE(m.currentDay() == 3);
+  m.advanceDay();
+  REQUIRE(m.currentDay() == 4);
+}
+
+TEST_CASE("sleepAdvancesDayOnceOnlyWhenFacingTheFarmhouse") {
+  GameModel m;
+  REQUIRE(m.currentDay() == 1);
+  REQUIRE_FALSE(m.trySleep());
+  REQUIRE(m.currentDay() == 1);
+
+  moveToFarmhouseApproach(m);
+  REQUIRE_FALSE(m.tryMove(Direction::UP));
+  REQUIRE(m.isFacingFarmhouse());
+  REQUIRE(m.trySleep());
+  REQUIRE(m.currentDay() == 2);
+}
+
+TEST_CASE("failedSleepDoesNotAdvanceTheDay") {
+  GameModel m;
+  moveToFarmhouseApproach(m);
+  REQUIRE(m.tryMove(Direction::LEFT));
+  REQUIRE(m.tryMove(Direction::RIGHT));
+  REQUIRE_FALSE(m.isFacingFarmhouse());
+  REQUIRE_FALSE(m.trySleep());
+  REQUIRE(m.currentDay() == 1);
 }
 
 TEST_CASE("market_isFacingRequiresTheDesignatedTileInFront") {
@@ -1211,6 +1375,51 @@ static void waterDays(GameModel &m, int column, int row, int days) {
   for (int i = 0; i < days; ++i) {
     waterAndAdvance(m, column, row);
   }
+}
+
+TEST_CASE("sleepAdvancesWateredCropsAndRetainsUnwateredProgress") {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  tillAndPlant(m, 4, 2);
+  waterDays(m, 3, 2, 2);
+  waterDays(m, 4, 2, 2);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED);
+  REQUIRE_STAGE(m, 4, 2, CropStage::SEED);
+  REQUIRE(m.tryWater(3, 2));
+
+  const int dayBeforeSleep = m.currentDay();
+  moveToFarmhouseApproach(m);
+  REQUIRE_FALSE(m.tryMove(Direction::UP));
+  REQUIRE(m.trySleep());
+  REQUIRE(m.currentDay() == dayBeforeSleep + 1);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 4, 2, CropStage::SEED);
+  REQUIRE_FALSE(m.isWateredToday(3, 2));
+  REQUIRE_FALSE(m.isWateredToday(4, 2));
+
+  REQUIRE(m.tryWater(3, 2));
+  REQUIRE(m.tryWater(4, 2));
+  REQUIRE(m.isWateredToday(3, 2));
+  REQUIRE(m.isWateredToday(4, 2));
+  REQUIRE(m.trySleep());
+  REQUIRE_STAGE(m, 3, 2, CropStage::SPROUT);
+  REQUIRE_STAGE(m, 4, 2, CropStage::SPROUT);
+  REQUIRE_FALSE(m.isWateredToday(3, 2));
+  REQUIRE_FALSE(m.isWateredToday(4, 2));
+}
+
+TEST_CASE("failedSleepDoesNotChangeCropGrowthOrWatering") {
+  GameModel m;
+  tillAndPlant(m, 3, 2);
+  waterDays(m, 3, 2, 2);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED);
+  REQUIRE(m.tryWater(3, 2));
+
+  const int dayBeforeSleep = m.currentDay();
+  REQUIRE_FALSE(m.trySleep());
+  REQUIRE(m.currentDay() == dayBeforeSleep);
+  REQUIRE_STAGE(m, 3, 2, CropStage::SEED);
+  REQUIRE(m.isWateredToday(3, 2));
 }
 
 // ---- Watering eligibility --------------------------------------------------
