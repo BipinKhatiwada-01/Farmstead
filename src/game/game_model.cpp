@@ -42,8 +42,14 @@ GameModel::GameModel() : player(kStartPosition), facing(Direction::DOWN) {
       }
     }
   }
+  // assign market tile types
   for (const TilePosition &position : kMarketFootprint) {
     tiles[indexOf(position.column, position.row)] = TileType::MARKET;
+  }
+
+  // assign farmhouse tile types
+  for (const TilePosition &position : kFarmhouseFootprint) {
+    tiles[indexOf(position.column, position.row)] = TileType::FARMHOUSE;
   }
 }
 
@@ -126,9 +132,10 @@ bool GameModel::tryMove(Direction direction) {
   if (!isInBounds(targetColumn, targetRow))
     return false;
 
-  // obstacle & market
+  // obstacle, market & farmhouse
   TileType targetTile = tileAt(targetColumn, targetRow);
-  if (targetTile == TileType::OBSTACLE || targetTile == TileType::MARKET)
+  if (targetTile == TileType::OBSTACLE || targetTile == TileType::MARKET ||
+      targetTile == TileType::FARMHOUSE)
     return false;
 
   player = {targetColumn, targetRow};
@@ -232,6 +239,7 @@ void GameModel::advanceDay() {
       crop->advanceDay();
     }
   }
+  ++day;
 }
 
 bool GameModel::tryHarvest(int column, int row) {
@@ -298,5 +306,19 @@ bool GameModel::trySellProduce(int quantity) {
 bool GameModel::isFacingMarket() const {
   return tileInFront() == kMarketInteractionPosition;
 }
+
+bool GameModel::isFacingFarmhouse() const {
+  return tileInFront() == kFarmhouseInteractionPosition;
+}
+
+bool GameModel::trySleep() {
+  if (!isFacingFarmhouse())
+    return false;
+
+  advanceDay();
+  return true;
+}
+
+int GameModel::currentDay() const { return day; }
 
 } // namespace farmstead
