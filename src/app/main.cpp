@@ -12,6 +12,33 @@ namespace {
 constexpr int kWindowWidth = 960;
 constexpr int kWindowHeight = 800;
 
+enum class ApplicationState {
+    TITLE,
+    PLAYING,
+    PAUSED,
+    VICTORY
+};
+
+enum class PauseAction {
+    NONE,
+    RESTART_FARM,
+    RETURN_TO_TITLE,
+    QUIT_GAME
+};
+
+constexpr int kTitleOptionCount = 2;
+constexpr int kPauseOptionCount = 4;
+
+int wrapSelection(int selection, int direction, int optionCount) {
+    selection += direction;
+    if (selection < 0) {
+        selection = optionCount - 1;
+    } else if (selection >= optionCount) {
+        selection = 0;
+    }
+    return selection;
+}
+
 } // namespace
 
 int main() {
@@ -51,6 +78,13 @@ int main() {
     }
 
     farmstead::GameModel model;
+    ApplicationState applicationState = ApplicationState::TITLE;
+    PauseAction pendingPauseAction = PauseAction::NONE;
+
+    int titleSelection = 0;
+    int pauseSelection = 0;
+    int confirmationSelection = 1; // Default to NO for destructive actions.
+
     bool running = true;
     std::string hudMessage;
     farmstead::render::HudMessageTone hudMessageTone =
@@ -62,23 +96,70 @@ int main() {
         hudMessageTone = tone;
     };
 
+    const auto startNewFarm = [&]() {
+        model = farmstead::GameModel{};
+        hudMessage.clear();
+        hudMessageTone = farmstead::render::HudMessageTone::INFO;
+        applicationState = ApplicationState::PLAYING;
+    };
+
+    const auto beginPauseConfirmation = [&](PauseAction action) {
+        pendingPauseAction = action;
+        confirmationSelection = 1;
+    };
+
     while (running) {
         SDL_Event event;
 
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
+                continue;
             }
-            else if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-                switch (event.key.key) {
+
+            if (event.type != SDL_EVENT_KEY_DOWN || event.key.repeat) {
+                continue;
+            }
+
+            const SDL_Keycode key = event.key.key;
+
+            switch (applicationState) {
+            case ApplicationState::TITLE:
+                if (key == SDLK_UP) {
+                    titleSelection = wrapSelection(titleSelection, -1,
+                                                   kTitleOptionCount);
+                } else if (key == SDLK_DOWN) {
+                    titleSelection = wrapSelection(titleSelection, 1,
+                                                   kTitleOptionCount);
+                } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                           key == SDLK_SPACE) {
+                    if (titleSelection == 0) {
+                        startNewFarm();
+                    } else {
+                        running = false;
+                    }
+                } else if (key == SDLK_ESCAPE) {
+                    running = false;
+                }
+                break;
+
+            case ApplicationState::PLAYING:
+                if (key == SDLK_ESCAPE) {
+                    applicationState = ApplicationState::PAUSED;
+                    pauseSelection = 0;
+                    pendingPauseAction = PauseAction::NONE;
+                    break;
+                }
+
+                switch (key) {
                 case SDLK_RIGHT:
                 case SDLK_LEFT:
                 case SDLK_UP:
                 case SDLK_DOWN: {
                     farmstead::Direction direction = farmstead::Direction::DOWN;
-                    if (event.key.key == SDLK_RIGHT) direction = farmstead::Direction::RIGHT;
-                    if (event.key.key == SDLK_LEFT)  direction = farmstead::Direction::LEFT;
-                    if (event.key.key == SDLK_UP)    direction = farmstead::Direction::UP;
+                    if (key == SDLK_RIGHT) direction = farmstead::Direction::RIGHT;
+                    if (key == SDLK_LEFT)  direction = farmstead::Direction::LEFT;
+                    if (key == SDLK_UP)    direction = farmstead::Direction::UP;
 
                     const bool moved = model.tryMove(direction);
                     if (model.isFacingMarket()) {
@@ -230,6 +311,7 @@ int main() {
                                 setHudMessage("OBJECTIVE COMPLETE  -  YOU EARNED " +
                                                   std::to_string(model.coinsEarned()) + " COINS",
                                               farmstead::render::HudMessageTone::SUCCESS);
+                                applicationState = ApplicationState::VICTORY;
                             } else {
                                 setHudMessage("SOLD " + std::to_string(quantity) +
                                                   " PRODUCE  -  EARNED " +
@@ -247,11 +329,122 @@ int main() {
                 default:
                     break;
                 }
+                break;
+
+            case ApplicationState::PAUSED:
+                if (pendingPauseAction != PauseAction::NONE) {
+                    if (key == SDLK_ESCAPE) {
+                        pendingPauseAction = PauseAction::NONE;
+                    } else if (key == SDLK_LEFT || key == SDLK_RIGHT ||
+                               key == SDLK_UP || key == SDLK_DOWN) {
+                        confirmationSelection = 1 - confirmationSelection;
+                    } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                               key == SDLK_SPACE) {
+                        if (confirmationSelection == 1) {
+                            pendingPauseAction = PauseAction::NONE;
+                            break;
+                        }
+
+                        switch (pendingPauseAction) {
+                        case PauseAction::RESTART_FARM:
+                            startNewFarm();
+                            pendingPauseAction = PauseAction::NONE;
+                            break;
+                        case PauseAction::RETURN_TO_TITLE:
+                            model = farmstead::GameModel{};
+                            hudMessage.clear();
+                            titleSelection = 0;
+                            applicationState = ApplicationState::TITLE;
+                            pendingPauseAction = PauseAction::NONE;
+                            break;
+                        case PauseAction::QUIT_GAME:
+                            running = false;
+                            break;
+                        case PauseAction::NONE:
+                            break;
+                        }
+                    }
+                    break;
+                }
+
+                if (key == SDLK_ESCAPE) {
+                    applicationState = ApplicationState::PLAYING;
+                } else if (key == SDLK_UP) {
+                    pauseSelection = wrapSelection(pauseSelection, -1,
+                                                   kPauseOptionCount);
+                } else if (key == SDLK_DOWN) {
+                    pauseSelection = wrapSelection(pauseSelection, 1,
+                                                   kPauseOptionCount);
+                } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                           key == SDLK_SPACE) {
+                    switch (pauseSelection) {
+                    case 0:
+                        applicationState = ApplicationState::PLAYING;
+                        break;
+                    case 1:
+                        beginPauseConfirmation(PauseAction::RESTART_FARM);
+                        break;
+                    case 2:
+                        beginPauseConfirmation(PauseAction::RETURN_TO_TITLE);
+                        break;
+                    case 3:
+                        beginPauseConfirmation(PauseAction::QUIT_GAME);
+                        break;
+                    default:
+                        break;
+                    }
+                }
+                break;
+
+            case ApplicationState::VICTORY:
+                if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
+                    key == SDLK_SPACE || key == SDLK_ESCAPE) {
+                    applicationState = ApplicationState::PLAYING;
+                    hudMessage.clear();
+                }
+                break;
             }
         }
 
-        farmstead::render::renderWorld(
-            renderPointer, model, hudMessage, hudMessageTone);
+        switch (applicationState) {
+        case ApplicationState::TITLE:
+            farmstead::render::renderTitleScreen(renderPointer, titleSelection);
+            break;
+
+        case ApplicationState::PLAYING:
+            farmstead::render::renderWorld(
+                renderPointer, model, hudMessage, hudMessageTone);
+            break;
+
+        case ApplicationState::PAUSED: {
+            std::string confirmationMessage;
+            switch (pendingPauseAction) {
+            case PauseAction::RESTART_FARM:
+                confirmationMessage = "RESTART THIS FARM?";
+                break;
+            case PauseAction::RETURN_TO_TITLE:
+                confirmationMessage = "RETURN TO THE TITLE SCREEN?";
+                break;
+            case PauseAction::QUIT_GAME:
+                confirmationMessage = "QUIT FARMSTEAD?";
+                break;
+            case PauseAction::NONE:
+                break;
+            }
+
+            farmstead::render::renderPauseMenu(
+                renderPointer, model, pauseSelection,
+                pendingPauseAction != PauseAction::NONE,
+                confirmationMessage, confirmationSelection,
+                hudMessage, hudMessageTone);
+            break;
+        }
+
+        case ApplicationState::VICTORY:
+            farmstead::render::renderVictoryOverlay(
+                renderPointer, model, hudMessage);
+            break;
+        }
     }
 
     SDL_DestroyRenderer(renderPointer);
