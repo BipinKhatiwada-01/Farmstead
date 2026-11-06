@@ -50,11 +50,29 @@ void drawGrassDetails(SDL_Renderer* renderer, int column, int row) {
         fillRect(renderer, bladeC, 57, 143, 73);
     } else if (pattern == 8) {
         const SDL_FRect flowerStem{x + 25.0f, y + 22.0f, 2.0f, 7.0f};
-        const SDL_FRect flower{x + 23.0f, y + 19.0f, 6.0f, 5.0f};
+        const SDL_FRect flowerTop{x + 24.0f, y + 18.0f, 4.0f, 3.0f};
+        const SDL_FRect flowerLeft{x + 21.0f, y + 20.0f, 4.0f, 3.0f};
+        const SDL_FRect flowerRight{x + 27.0f, y + 20.0f, 4.0f, 3.0f};
         const SDL_FRect flowerCenter{x + 25.0f, y + 20.0f, 2.0f, 2.0f};
         fillRect(renderer, flowerStem, 57, 126, 66);
-        fillRect(renderer, flower, 238, 218, 166);
+        fillRect(renderer, flowerTop, 238, 218, 166);
+        fillRect(renderer, flowerLeft, 238, 218, 166);
+        fillRect(renderer, flowerRight, 238, 218, 166);
         fillRect(renderer, flowerCenter, 220, 177, 76);
+    } else if (pattern == 10) {
+        const SDL_FRect cloverStem{x + 13.0f, y + 25.0f, 2.0f, 6.0f};
+        const SDL_FRect cloverLeft{x + 8.0f, y + 20.0f, 6.0f, 5.0f};
+        const SDL_FRect cloverRight{x + 15.0f, y + 19.0f, 6.0f, 5.0f};
+        const SDL_FRect cloverTop{x + 12.0f, y + 16.0f, 5.0f, 5.0f};
+        fillRect(renderer, cloverStem, 47, 112, 58);
+        fillRect(renderer, cloverLeft, 78, 154, 83);
+        fillRect(renderer, cloverRight, 91, 170, 91);
+        fillRect(renderer, cloverTop, 108, 184, 98);
+    } else if (pattern == 12) {
+        const SDL_FRect pebbleShadow{x + 25.0f, y + 28.0f, 7.0f, 3.0f};
+        const SDL_FRect pebble{x + 24.0f, y + 26.0f, 6.0f, 3.0f};
+        fillRect(renderer, pebbleShadow, 31, 105, 59);
+        fillRect(renderer, pebble, 105, 151, 101);
     }
 }
 
@@ -293,37 +311,48 @@ void drawCrop(SDL_Renderer* renderer, int column, int row,
     const float tileX = kMapOffsetX + static_cast<float>(column) * kTileSize;
     const float tileY = kMapOffsetY + static_cast<float>(row) * kTileSize;
 
+    const auto part = [&](float x, float y, float width, float height,
+                          Uint8 red, Uint8 green, Uint8 blue) {
+        const SDL_FRect rect{tileX + x, tileY + y, width, height};
+        fillRect(renderer, rect, red, green, blue);
+    };
+
     switch (stage) {
     case CropStage::SEED: {
-        // A small golden seed in the centre of the soil.
-        const SDL_FRect seed{tileX + 15.0f, tileY + 15.0f, 10.0f, 10.0f};
-        fillRect(renderer, seed, 205, 166, 75);
+        // A dark seed shadow and a warm highlight give the tiny state more depth.
+        part(14.0f, 18.0f, 12.0f, 6.0f, 85, 55, 39);
+        part(16.0f, 16.0f, 9.0f, 7.0f, 181, 129, 62);
+        part(18.0f, 16.0f, 5.0f, 3.0f, 230, 190, 105);
         break;
     }
 
     case CropStage::SPROUT: {
-        // Stem first, then two small leaves.
-        const SDL_FRect stem{tileX + 18.0f, tileY + 17.0f, 4.0f, 15.0f};
-        const SDL_FRect leftLeaf{tileX + 9.0f, tileY + 15.0f, 12.0f, 6.0f};
-        const SDL_FRect rightLeaf{tileX + 19.0f, tileY + 11.0f, 12.0f, 6.0f};
-        fillRect(renderer, stem, 65, 115, 48);
-        fillRect(renderer, leftLeaf, 75, 175, 75);
-        fillRect(renderer, rightLeaf, 95, 195, 85);
+        // A small, readable seedling with separate leaf highlights.
+        part(17.0f, 26.0f, 7.0f, 7.0f, 53, 91, 46);
+        part(19.0f, 16.0f, 3.0f, 15.0f, 57, 112, 53);
+        part(10.0f, 16.0f, 11.0f, 6.0f, 57, 132, 63);
+        part(11.0f, 16.0f, 7.0f, 3.0f, 113, 186, 90);
+        part(20.0f, 11.0f, 11.0f, 7.0f, 71, 153, 70);
+        part(23.0f, 11.0f, 7.0f, 3.0f, 139, 201, 104);
+        part(19.0f, 17.0f, 2.0f, 10.0f, 108, 160, 76);
         break;
     }
 
     case CropStage::MATURE: {
-        // A larger, blocky plant so the mature state is easy to distinguish.
-        const SDL_FRect stem{tileX + 18.0f, tileY + 17.0f, 5.0f, 18.0f};
-        const SDL_FRect leftLeaf{tileX + 5.0f, tileY + 17.0f, 16.0f, 10.0f};
-        const SDL_FRect rightLeaf{tileX + 20.0f, tileY + 13.0f, 15.0f, 11.0f};
-        const SDL_FRect topLeaf{tileX + 13.0f, tileY + 5.0f, 14.0f, 13.0f};
-        const SDL_FRect produce{tileX + 24.0f, tileY + 27.0f, 8.0f, 8.0f};
-        fillRect(renderer, stem, 65, 110, 45);
-        fillRect(renderer, leftLeaf, 65, 155, 65);
-        fillRect(renderer, rightLeaf, 85, 180, 70);
-        fillRect(renderer, topLeaf, 105, 195, 75);
-        fillRect(renderer, produce, 220, 175, 65);
+        // Layered leaves and a visible fruit make the harvest-ready state distinct.
+        part(16.0f, 26.0f, 9.0f, 9.0f, 45, 86, 42);
+        part(6.0f, 18.0f, 16.0f, 11.0f, 49, 119, 54);
+        part(19.0f, 15.0f, 16.0f, 13.0f, 58, 139, 62);
+        part(12.0f, 7.0f, 16.0f, 15.0f, 72, 157, 69);
+        part(14.0f, 8.0f, 10.0f, 5.0f, 127, 190, 91);
+        part(8.0f, 19.0f, 9.0f, 4.0f, 100, 171, 77);
+        part(26.0f, 17.0f, 7.0f, 4.0f, 119, 188, 83);
+        part(20.0f, 14.0f, 3.0f, 17.0f, 101, 160, 67);
+        // Golden produce, with a short green stem and one bright pixel.
+        part(25.0f, 27.0f, 9.0f, 8.0f, 167, 108, 39);
+        part(26.0f, 25.0f, 7.0f, 8.0f, 226, 173, 65);
+        part(28.0f, 25.0f, 3.0f, 2.0f, 247, 211, 116);
+        part(28.0f, 23.0f, 3.0f, 3.0f, 71, 125, 51);
         break;
     }
 
@@ -333,11 +362,11 @@ void drawCrop(SDL_Renderer* renderer, int column, int row,
     }
 
     if (wateredToday) {
-        // Small blue marker in the top-right corner of a watered crop.
-        const SDL_FRect waterMarker{
-            tileX + kTileSize - 9.0f, tileY + 3.0f, 6.0f, 6.0f
-        };
-        fillRect(renderer, waterMarker, 65, 165, 235);
+        // Small pixel-art water droplet, more legible than a plain blue square.
+        part(31.0f, 3.0f, 4.0f, 2.0f, 35, 103, 153);
+        part(30.0f, 5.0f, 6.0f, 3.0f, 45, 142, 195);
+        part(31.0f, 8.0f, 4.0f, 2.0f, 45, 142, 195);
+        part(32.0f, 5.0f, 2.0f, 2.0f, 154, 217, 237);
     }
 }
 
@@ -631,44 +660,120 @@ void drawWorldFrame(SDL_Renderer* renderer, const GameModel& model,
 }
 
 void drawWoodPanel(SDL_Renderer* renderer, const SDL_FRect& rect) {
-    const SDL_FRect shadow{rect.x + 4.0f, rect.y + 5.0f, rect.w, rect.h};
+    const SDL_FRect shadow{rect.x + 5.0f, rect.y + 6.0f, rect.w, rect.h};
     const SDL_FRect inset{rect.x + 5.0f, rect.y + 5.0f,
                           rect.w - 10.0f, rect.h - 10.0f};
-    const SDL_FRect topHighlight{rect.x + 7.0f, rect.y + 7.0f,
-                                 rect.w - 14.0f, 2.0f};
+    const SDL_FRect topHighlight{rect.x + 8.0f, rect.y + 7.0f,
+                                 rect.w - 16.0f, 2.0f};
+    const SDL_FRect innerBorder{rect.x + 9.0f, rect.y + 9.0f,
+                                rect.w - 18.0f, rect.h - 18.0f};
 
-    fillRect(renderer, shadow, 24, 23, 19, 220);
-    fillRect(renderer, rect, 48, 31, 23, 255);
-    fillRect(renderer, inset, 112, 73, 47, 255);
-    SDL_SetRenderDrawColor(renderer, 204, 161, 91, 255);
+    fillRect(renderer, shadow, 20, 19, 16);
+    fillRect(renderer, rect, 43, 28, 21);
+    fillRect(renderer, inset, 105, 67, 43);
+    SDL_SetRenderDrawColor(renderer, 213, 174, 112, 255);
     SDL_RenderRect(renderer, &rect);
-    fillRect(renderer, topHighlight, 193, 150, 99, 255);
+    SDL_SetRenderDrawColor(renderer, 148, 99, 61, 255);
+    SDL_RenderRect(renderer, &innerBorder);
+    fillRect(renderer, topHighlight, 207, 165, 109);
 
-    const SDL_FRect lowerRail{rect.x + 7.0f, rect.y + rect.h - 10.0f,
-                              rect.w - 14.0f, 2.0f};
-    fillRect(renderer, lowerRail, 76, 47, 31, 255);
+    // Fine plank lines make the panel feel like timber without adding noise.
+    const SDL_FRect grainA{rect.x + 14.0f, rect.y + rect.h * 0.35f,
+                           rect.w - 28.0f, 1.0f};
+    const SDL_FRect grainB{rect.x + 14.0f, rect.y + rect.h * 0.72f,
+                           rect.w - 28.0f, 1.0f};
+    fillRect(renderer, grainA, 113, 73, 47);
+    fillRect(renderer, grainB, 119, 77, 49);
+
+    const SDL_FRect lowerRail{rect.x + 8.0f, rect.y + rect.h - 11.0f,
+                              rect.w - 16.0f, 2.0f};
+    fillRect(renderer, lowerRail, 69, 43, 29);
+
+    // Four small brass pegs reinforce the handcrafted plaque aesthetic.
+    const SDL_FRect pegTL{rect.x + 5.0f, rect.y + 5.0f, 3.0f, 3.0f};
+    const SDL_FRect pegTR{rect.x + rect.w - 8.0f, rect.y + 5.0f, 3.0f, 3.0f};
+    const SDL_FRect pegBL{rect.x + 5.0f, rect.y + rect.h - 8.0f, 3.0f, 3.0f};
+    const SDL_FRect pegBR{rect.x + rect.w - 8.0f, rect.y + rect.h - 8.0f, 3.0f, 3.0f};
+    fillRect(renderer, pegTL, 224, 188, 127);
+    fillRect(renderer, pegTR, 224, 188, 127);
+    fillRect(renderer, pegBL, 167, 124, 78);
+    fillRect(renderer, pegBR, 167, 124, 78);
 }
 
 void drawMenuOption(SDL_Renderer* renderer, const SDL_FRect& rect,
                     const char* label, bool selected) {
     if (selected) {
-        fillRect(renderer, rect, 193, 145, 78, 255);
+        const SDL_FRect outerGlow{rect.x - 2.0f, rect.y - 2.0f,
+                                  rect.w + 4.0f, rect.h + 4.0f};
+        fillRect(renderer, outerGlow, 207, 165, 104);
+        fillRect(renderer, rect, 71, 43, 29);
         const SDL_FRect inner{rect.x + 2.0f, rect.y + 2.0f,
                               rect.w - 4.0f, rect.h - 4.0f};
-        fillRect(renderer, inner, 128, 82, 48, 255);
-        SDL_SetRenderDrawColor(renderer, 235, 203, 146, 255);
+        fillRect(renderer, inner, 135, 83, 47);
+        const SDL_FRect topEdge{rect.x + 4.0f, rect.y + 3.0f,
+                                rect.w - 8.0f, 2.0f};
+        fillRect(renderer, topEdge, 180, 120, 69);
+        SDL_SetRenderDrawColor(renderer, 247, 218, 169, 255);
         SDL_RenderRect(renderer, &rect);
-        const SDL_FRect marker{rect.x + 10.0f, rect.y + 9.0f, 4.0f, 8.0f};
-        fillRect(renderer, marker, 241, 209, 150, 255);
-        SDL_SetRenderDrawColor(renderer, 250, 235, 205, 255);
+        const SDL_FRect markerStem{rect.x + 11.0f, rect.y + 9.0f, 2.0f, 13.0f};
+        const SDL_FRect markerLeaf{rect.x + 8.0f, rect.y + 8.0f, 5.0f, 4.0f};
+        fillRect(renderer, markerStem, 231, 199, 132);
+        fillRect(renderer, markerLeaf, 157, 190, 116);
+        SDL_SetRenderDrawColor(renderer, 255, 239, 208, 255);
     } else {
-        fillRect(renderer, rect, 88, 56, 37, 255);
-        SDL_SetRenderDrawColor(renderer, 211, 187, 151, 255);
+        fillRect(renderer, rect, 76, 49, 33);
+        const SDL_FRect topEdge{rect.x + 3.0f, rect.y + 2.0f,
+                                rect.w - 6.0f, 1.0f};
+        fillRect(renderer, topEdge, 122, 82, 53);
+        SDL_SetRenderDrawColor(renderer, 187, 155, 119, 255);
         SDL_RenderRect(renderer, &rect);
-        SDL_SetRenderDrawColor(renderer, 239, 222, 190, 255);
+        SDL_SetRenderDrawColor(renderer, 236, 216, 184, 255);
     }
 
-    SDL_RenderDebugText(renderer, rect.x + 25.0f, rect.y + 10.0f, label);
+    SDL_RenderDebugText(renderer, rect.x + 27.0f, rect.y + 10.0f, label);
+}
+
+void drawTitleCloud(SDL_Renderer* renderer, float x, float y, float scale) {
+    // Tiny block clouds; intentionally low contrast so the title plaque remains focal.
+    const auto cloudPart = [&](float px, float py, float width, float height,
+                               Uint8 red, Uint8 green, Uint8 blue) {
+        const SDL_FRect rect{x + px * scale, y + py * scale,
+                             width * scale, height * scale};
+        fillRect(renderer, rect, red, green, blue);
+    };
+    cloudPart(4.0f, 7.0f, 42.0f, 11.0f, 106, 129, 105);
+    cloudPart(13.0f, 1.0f, 25.0f, 13.0f, 117, 139, 112);
+    cloudPart(23.0f, 6.0f, 34.0f, 12.0f, 106, 129, 105);
+    cloudPart(10.0f, 16.0f, 45.0f, 3.0f, 91, 117, 91);
+}
+
+void drawTitleFence(SDL_Renderer* renderer, float x, float y, int posts) {
+    const SDL_FRect upperRail{x, y + 8.0f, static_cast<float>(posts - 1) * 25.0f, 3.0f};
+    const SDL_FRect lowerRail{x, y + 22.0f, static_cast<float>(posts - 1) * 25.0f, 3.0f};
+    fillRect(renderer, upperRail, 119, 79, 48);
+    fillRect(renderer, lowerRail, 93, 61, 39);
+    for (int i = 0; i < posts; ++i) {
+        const float postX = x + static_cast<float>(i) * 25.0f;
+        const SDL_FRect post{postX, y, 5.0f, 31.0f};
+        const SDL_FRect cap{postX - 1.0f, y - 2.0f, 7.0f, 4.0f};
+        fillRect(renderer, post, 126, 84, 51);
+        fillRect(renderer, cap, 157, 108, 68);
+        const SDL_FRect grain{postX + 1.0f, y + 7.0f, 1.0f, 17.0f};
+        fillRect(renderer, grain, 166, 119, 77);
+    }
+}
+
+void drawTitleFlowerPatch(SDL_Renderer* renderer, float x, float y) {
+    const SDL_FRect grassA{x, y + 7.0f, 30.0f, 3.0f};
+    const SDL_FRect grassB{x + 8.0f, y + 4.0f, 2.0f, 6.0f};
+    const SDL_FRect grassC{x + 18.0f, y + 2.0f, 2.0f, 8.0f};
+    fillRect(renderer, grassA, 45, 107, 57);
+    fillRect(renderer, grassB, 72, 153, 78);
+    fillRect(renderer, grassC, 72, 153, 78);
+    const SDL_FRect flowerA{x + 5.0f, y, 4.0f, 3.0f};
+    const SDL_FRect flowerB{x + 19.0f, y - 1.0f, 4.0f, 3.0f};
+    fillRect(renderer, flowerA, 236, 211, 156);
+    fillRect(renderer, flowerB, 231, 197, 142);
 }
 
 void drawDimOverlay(SDL_Renderer* renderer) {
@@ -690,76 +795,111 @@ void renderTitleScreen(SDL_Renderer* renderer, int selectedOption) {
     SDL_SetRenderDrawColor(renderer, 30, 49, 42, 255);
     SDL_RenderClear(renderer);
 
-    // A quiet countryside backdrop, built from the same geometric language as
-    // the in-game world so the title screen feels like part of Farmstead.
+    // Layered dusk sky, low hills and a cultivated foreground.
     const SDL_FRect sky{0.0f, 0.0f, 800.0f, 360.0f};
+    const SDL_FRect skyBandA{0.0f, 155.0f, 800.0f, 85.0f};
+    const SDL_FRect skyBandB{0.0f, 240.0f, 800.0f, 82.0f};
     const SDL_FRect distantHill{0.0f, 265.0f, 800.0f, 120.0f};
     const SDL_FRect middleHill{0.0f, 305.0f, 800.0f, 110.0f};
     const SDL_FRect field{0.0f, 350.0f, 800.0f, 314.0f};
-    fillRect(renderer, sky, 64, 93, 77, 255);
-    fillRect(renderer, distantHill, 78, 113, 74, 255);
-    fillRect(renderer, middleHill, 58, 91, 62, 255);
-    fillRect(renderer, field, 43, 125, 66, 255);
+    fillRect(renderer, sky, 61, 89, 76);
+    fillRect(renderer, skyBandA, 76, 103, 82);
+    fillRect(renderer, skyBandB, 88, 111, 79);
+    fillRect(renderer, distantHill, 83, 116, 75);
+    fillRect(renderer, middleHill, 60, 96, 64);
+    fillRect(renderer, field, 43, 125, 66);
 
-    const SDL_FRect sunOuter{620.0f, 82.0f, 54.0f, 54.0f};
-    const SDL_FRect sunInner{627.0f, 89.0f, 40.0f, 40.0f};
-    fillRect(renderer, sunOuter, 217, 174, 105, 255);
-    fillRect(renderer, sunInner, 238, 206, 145, 255);
+    // Warm sun and broken cloud shapes establish a quiet late-afternoon mood.
+    const SDL_FRect sunHalo{604.0f, 62.0f, 88.0f, 88.0f};
+    const SDL_FRect sunOuter{620.0f, 78.0f, 56.0f, 56.0f};
+    const SDL_FRect sunInner{627.0f, 85.0f, 42.0f, 42.0f};
+    fillRect(renderer, sunHalo, 107, 119, 81);
+    fillRect(renderer, sunOuter, 213, 169, 100);
+    fillRect(renderer, sunInner, 239, 211, 153);
+    drawTitleCloud(renderer, 78.0f, 74.0f, 1.0f);
+    drawTitleCloud(renderer, 488.0f, 185.0f, 0.72f);
 
-    // Soft field bands and furrows give the foreground some depth.
+    // Layered field rows, narrow furrows and small planted patches.
     for (int row = 0; row < 5; ++row) {
         const float y = 390.0f + static_cast<float>(row) * 49.0f;
         const SDL_FRect band{0.0f, y, 800.0f, 2.0f};
-        fillRect(renderer, band, 54, 139, 72, 255);
+        const SDL_FRect shadowBand{0.0f, y + 3.0f, 800.0f, 1.0f};
+        fillRect(renderer, band, 58, 144, 75);
+        fillRect(renderer, shadowBand, 36, 108, 57);
         for (int column = 0; column < 10; ++column) {
             const float x = static_cast<float>(column) * 86.0f +
                             static_cast<float>((row % 2) * 30);
             const SDL_FRect furrow{x, y + 13.0f, 58.0f, 3.0f};
-            fillRect(renderer, furrow, 34, 105, 57, 255);
+            const SDL_FRect furrowHighlight{x + 3.0f, y + 13.0f, 48.0f, 1.0f};
+            fillRect(renderer, furrow, 34, 105, 57);
+            fillRect(renderer, furrowHighlight, 64, 135, 73);
         }
     }
 
-    // Background silhouettes: trees at the edge and the farmhouse to the right.
+    // Background landmarks and a small fence ground the scene in the same world.
     drawTree(renderer, 1, 7);
     drawTree(renderer, 3, 8);
     drawTree(renderer, 18, 7);
     drawFarmhouse(renderer, 13, 6);
+    drawTitleFence(renderer, 45.0f, 458.0f, 5);
+    drawTitleFlowerPatch(renderer, 665.0f, 495.0f);
+    drawTitleFlowerPatch(renderer, 722.0f, 557.0f);
 
-    // A restrained wooden title plaque.
+    // A subtle vignette-like frame gives the scene a finished edge.
+    const SDL_FRect topFrame{0.0f, 0.0f, 800.0f, 5.0f};
+    const SDL_FRect leftFrame{0.0f, 0.0f, 5.0f, 664.0f};
+    const SDL_FRect rightFrame{795.0f, 0.0f, 5.0f, 664.0f};
+    const SDL_FRect bottomFrame{0.0f, 659.0f, 800.0f, 5.0f};
+    fillRect(renderer, topFrame, 34, 48, 39);
+    fillRect(renderer, leftFrame, 34, 48, 39);
+    fillRect(renderer, rightFrame, 34, 48, 39);
+    fillRect(renderer, bottomFrame, 34, 48, 39);
+
+    // Main title plaque.
     const SDL_FRect titlePanel{174.0f, 73.0f, 452.0f, 139.0f};
     drawWoodPanel(renderer, titlePanel);
-    const SDL_FRect titleInner{189.0f, 88.0f, 422.0f, 109.0f};
-    fillRect(renderer, titleInner, 82, 51, 34, 255);
+    const SDL_FRect titleInner{190.0f, 89.0f, 420.0f, 107.0f};
+    fillRect(renderer, titleInner, 77, 47, 32);
+    const SDL_FRect titleInnerLine{204.0f, 101.0f, 392.0f, 1.0f};
+    const SDL_FRect titleBottomLine{204.0f, 184.0f, 392.0f, 1.0f};
+    fillRect(renderer, titleInnerLine, 128, 82, 51);
+    fillRect(renderer, titleBottomLine, 128, 82, 51);
 
-    // Small sprout mark.
+    // Small sprout mark, paired with the title and subtitle.
     const SDL_FRect sproutStem{270.0f, 122.0f, 4.0f, 31.0f};
     const SDL_FRect sproutLeafLeft{249.0f, 112.0f, 22.0f, 12.0f};
     const SDL_FRect sproutLeafRight{274.0f, 119.0f, 24.0f, 13.0f};
-    fillRect(renderer, sproutStem, 202, 171, 111, 255);
-    fillRect(renderer, sproutLeafLeft, 133, 173, 104, 255);
-    fillRect(renderer, sproutLeafRight, 94, 145, 81, 255);
+    const SDL_FRect sproutVeinLeft{257.0f, 117.0f, 11.0f, 2.0f};
+    const SDL_FRect sproutVeinRight{277.0f, 124.0f, 12.0f, 2.0f};
+    fillRect(renderer, sproutStem, 211, 180, 119);
+    fillRect(renderer, sproutLeafLeft, 133, 173, 104);
+    fillRect(renderer, sproutLeafRight, 94, 145, 81);
+    fillRect(renderer, sproutVeinLeft, 172, 204, 129);
+    fillRect(renderer, sproutVeinRight, 132, 177, 106);
 
-    SDL_SetRenderDrawColor(renderer, 248, 231, 197, 255);
+    SDL_SetRenderDrawColor(renderer, 250, 234, 204, 255);
     SDL_RenderDebugText(renderer, 319.0f, 117.0f, "F A R M S T E A D");
-    SDL_SetRenderDrawColor(renderer, 216, 190, 151, 255);
+    SDL_SetRenderDrawColor(renderer, 220, 194, 155, 255);
     SDL_RenderDebugText(renderer, 293.0f, 151.0f,
                         "A SMALL LIFE ON THE LAND");
 
-    // Main menu panel and keyboard navigation.
-    const SDL_FRect menuPanel{270.0f, 333.0f, 260.0f, 160.0f};
+    // Menu panel with clearly separated heading, actions and keyboard hint.
+    const SDL_FRect menuPanel{270.0f, 333.0f, 260.0f, 166.0f};
     drawWoodPanel(renderer, menuPanel);
-    SDL_SetRenderDrawColor(renderer, 245, 226, 191, 255);
+    SDL_SetRenderDrawColor(renderer, 249, 231, 198, 255);
     SDL_RenderDebugText(renderer, 347.0f, 354.0f, "BEGIN YOUR STORY");
+    const SDL_FRect divider{292.0f, 371.0f, 216.0f, 1.0f};
+    fillRect(renderer, divider, 158, 112, 75);
 
     const SDL_FRect newFarmOption{300.0f, 382.0f, 200.0f, 34.0f};
     const SDL_FRect quitOption{300.0f, 427.0f, 200.0f, 34.0f};
     drawMenuOption(renderer, newFarmOption, "NEW FARM", selectedOption == 0);
-    drawMenuOption(renderer, quitOption, "QUIT", selectedOption == 1);
+    drawMenuOption(renderer, quitOption, "QUIT GAME", selectedOption == 1);
 
-    SDL_SetRenderDrawColor(renderer, 239, 222, 190, 255);
-    SDL_RenderDebugText(renderer, 288.0f, 535.0f,
+    SDL_SetRenderDrawColor(renderer, 244, 225, 191, 255);
+    SDL_RenderDebugText(renderer, 286.0f, 535.0f,
                         "ARROWS SELECT     ENTER CONFIRM");
-    SDL_SetRenderDrawColor(renderer, 186, 166, 133, 255);
+    SDL_SetRenderDrawColor(renderer, 190, 169, 136, 255);
     SDL_RenderDebugText(renderer, 326.0f, 618.0f,
                         "FARMSTEAD  -  A LITTLE PLACE TO CALL HOME");
 
