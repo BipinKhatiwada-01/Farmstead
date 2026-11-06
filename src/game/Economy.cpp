@@ -20,6 +20,15 @@ int Economy::calculateSaleValue(int quantity) const {
 }
 
 bool Economy::addCoins(int amount) {
+  if (!canAddCoins(amount)) {
+    return false;
+  }
+
+  currency += amount;
+  return true;
+}
+
+bool Economy::canAddCoins(int amount) const {
   if (amount <= 0) {
     return false;
   }
@@ -28,6 +37,5 @@ bool Economy::addCoins(int amount) {
     return false;
   }
 
-  currency += amount;
   return true;
 }

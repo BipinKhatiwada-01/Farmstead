@@ -89,9 +89,9 @@ public:
   /// Tries to move the player exactly one tile in `direction`.
   ///
   /// Returns true if the player moved. Returns false if the target tile is off
-  /// the map or is an OBSTACLE; in that case the player's position is
-  /// UNCHANGED. Call it once per key press; held-key repeat handling belongs to
-  /// the SDL layer, not here.
+  /// the map or is an OBSTACLE or MARKET tile; in that case the player's
+  /// position is UNCHANGED. Call it once per key press; held-key repeat
+  /// handling belongs to the SDL layer, not here.
   bool tryMove(Direction direction);
 
   /// True if (column, row) is on the map, i.e. 0 <= column < mapWidth() and

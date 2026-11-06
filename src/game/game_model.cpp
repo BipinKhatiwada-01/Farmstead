@@ -161,6 +161,9 @@ bool GameModel::tryPlant(int column, int row) {
   if (!isInBounds(column, row)) {
     return false;
   }
+  if (tileAt(column, row) != TileType::GROUND) {
+    return false;
+  }
   const std::size_t index = indexOf(column, row);
   if (!tilled[index]) {
     return false;
@@ -270,7 +273,7 @@ bool GameModel::trySellProduce(int quantity) {
   if (!isFacingMarket())
     return false;
 
-  if (inventory.produceCount() < quantity || quantity <= 0) {
+  if (!inventory.canRemoveProduce(quantity)) {
     return false;
   }
 
@@ -280,10 +283,12 @@ bool GameModel::trySellProduce(int quantity) {
     return false;
   }
 
-  if (!economy.addCoins(saleValue)) {
+  if (!economy.canAddCoins(saleValue) ||
+      !progression.canRecordCoins(saleValue)) {
     return false;
   }
 
+  economy.addCoins(saleValue);
   inventory.removeProduce(quantity);
   progression.onCoinsEarned(saleValue);
 

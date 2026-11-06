@@ -10,6 +10,8 @@ public:
 
   bool objectiveCompleted() const;
 
+  bool canRecordCoins(int amount) const;
+
 private:
   int totalCoinsEarned{0};
 

@@ -17,7 +17,7 @@ bool Inventory::addProduce(int quantity) {
 }
 
 bool Inventory::removeProduce(int quantity) {
-  if (quantity <= 0 || quantity > produce) {
+  if (!canRemoveProduce(quantity)) {
     return false;
   }
 
@@ -26,3 +26,7 @@ bool Inventory::removeProduce(int quantity) {
 }
 
 int Inventory::produceCount() const { return produce; }
+
+bool Inventory::canRemoveProduce(int quantity) const {
+  return quantity > 0 && quantity <= produce;
+}

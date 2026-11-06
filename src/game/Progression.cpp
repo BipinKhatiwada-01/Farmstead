@@ -3,12 +3,8 @@
 #include <limits>
 
 void Progression::onCoinsEarned(int amount) {
-  if (amount <= 0)
+  if (!canRecordCoins(amount))
     return;
-
-  if (totalCoinsEarned > std::numeric_limits<int>::max() - amount)
-    return;
-
   totalCoinsEarned += amount;
 }
 
@@ -18,4 +14,14 @@ int Progression::objectiveTarget() const { return kObjectiveTarget; }
 
 bool Progression::objectiveCompleted() const {
   return totalCoinsEarned >= kObjectiveTarget;
+}
+
+bool Progression::canRecordCoins(int amount) const {
+  if (amount <= 0)
+    return false;
+
+  if (totalCoinsEarned > std::numeric_limits<int>::max() - amount)
+    return false;
+
+  return true;
 }
