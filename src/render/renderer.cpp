@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
+#include <string_view>
 
 namespace farmstead::render {
 namespace {
@@ -30,7 +32,7 @@ SDL_FRect makeTileRect(int column, int row) {
 bool isPathTile(int column, int row) {
     // A small worn track from the starting area towards the market.
     return (column == 1 && row >= 1 && row <= 5) ||
-           (row == 5 && column >= 1 && column <= 9);
+           (row == 5 && column >= 1 && column <= 10);
 }
 
 void drawGrassDetails(SDL_Renderer* renderer, int column, int row) {
@@ -334,80 +336,161 @@ void drawPlayer(SDL_Renderer* renderer, TilePosition position, Direction facing)
     }
 }
 
-} // namespace
+void drawHud(SDL_Renderer* renderer, const GameModel& model, int currentDay,
+             std::string_view message, HudMessageTone messageTone) {
+    // Warm walnut, oak and parchment palette. The green remains only as a
+    // restrained gameplay accent rather than the dominant HUD colour.
+    constexpr Uint8 kWalnut[3] = {76, 48, 34};
+    constexpr Uint8 kDarkWood[3] = {48, 31, 23};
+    constexpr Uint8 kPanelWood[3] = {112, 72, 47};
+    constexpr Uint8 kPanelBorder[3] = {177, 132, 82};
+    constexpr Uint8 kWoodHighlight[3] = {190, 148, 99};
+    constexpr Uint8 kParchment[3] = {245, 229, 198};
+    constexpr Uint8 kBrass[3] = {204, 161, 91};
 
-void renderWorld(SDL_Renderer* renderer, const GameModel& model, int currentDay) {
-    // Background and a two-tier HUD.
-    SDL_SetRenderDrawColor(renderer, 31, 47, 43, 255);
-    SDL_RenderClear(renderer);
+    const SDL_FRect background{0.0f, 0.0f, 800.0f, kHudHeight};
+    fillRect(renderer, background, kWalnut[0], kWalnut[1], kWalnut[2]);
 
-    const SDL_FRect hudBackground{0.0f, 0.0f,
-                                  static_cast<float>(kWindowWidth), kHudHeight};
-    fillRect(renderer, hudBackground, 29, 43, 43);
+    // Subtle horizontal plank seams: enough to suggest timber without
+    // competing with the information or turning the HUD into a texture.
+    const SDL_FRect plankSeamA{0.0f, 32.0f, 800.0f, 1.0f};
+    const SDL_FRect plankSeamB{0.0f, 33.0f, 800.0f, 1.0f};
+    const SDL_FRect plankHighlight{0.0f, 34.0f, 800.0f, 1.0f};
+    fillRect(renderer, plankSeamA, 62, 39, 28);
+    fillRect(renderer, plankSeamB, 91, 58, 39);
+    fillRect(renderer, plankHighlight, 94, 62, 41);
 
-    // Warm accent line gives the HUD a clear boundary from the world.
-    const SDL_FRect hudAccent{0.0f, 61.0f, static_cast<float>(kWindowWidth), 3.0f};
-    fillRect(renderer, hudAccent, 190, 143, 84);
+    const SDL_FRect lowerRail{0.0f, 60.0f, 800.0f, 4.0f};
+    fillRect(renderer, lowerRail, kDarkWood[0], kDarkWood[1], kDarkWood[2]);
+    const SDL_FRect brassEdge{0.0f, 60.0f, 800.0f, 1.0f};
+    fillRect(renderer, brassEdge, kBrass[0], kBrass[1], kBrass[2]);
 
-    // Small farm mark and title.
-    const SDL_FRect logoDark{10.0f, 8.0f, 20.0f, 20.0f};
-    const SDL_FRect logoLeafA{14.0f, 10.0f, 6.0f, 11.0f};
-    const SDL_FRect logoLeafB{19.0f, 13.0f, 6.0f, 8.0f};
-    fillRect(renderer, logoDark, 57, 91, 62);
-    fillRect(renderer, logoLeafA, 112, 176, 93);
-    fillRect(renderer, logoLeafB, 76, 145, 78);
+    const auto panel = [&](const SDL_FRect& rect) {
+        const SDL_FRect shadow{rect.x + 1.0f, rect.y + 2.0f,
+                               rect.w, rect.h};
+        fillRect(renderer, shadow, kDarkWood[0], kDarkWood[1], kDarkWood[2]);
+        fillRect(renderer, rect, kPanelWood[0], kPanelWood[1], kPanelWood[2]);
+        SDL_SetRenderDrawColor(renderer, kPanelBorder[0], kPanelBorder[1],
+                               kPanelBorder[2], 255);
+        SDL_RenderRect(renderer, &rect);
 
-    SDL_SetRenderDrawColor(renderer, 239, 226, 193, 255);
-    SDL_RenderDebugText(renderer, 36.0f, 14.0f, "FARMSTEAD");
+        const SDL_FRect topEdge{rect.x + 2.0f, rect.y + 2.0f,
+                                rect.w - 4.0f, 1.0f};
+        const SDL_FRect bottomEdge{rect.x + 2.0f, rect.y + rect.h - 3.0f,
+                                   rect.w - 4.0f, 1.0f};
+        fillRect(renderer, topEdge, kWoodHighlight[0],
+                 kWoodHighlight[1], kWoodHighlight[2]);
+        fillRect(renderer, bottomEdge, 74, 47, 32);
+    };
 
-    // Status cards.
-    const SDL_FRect dayCard{124.0f, 7.0f, 72.0f, 23.0f};
-    const SDL_FRect produceCard{202.0f, 7.0f, 118.0f, 23.0f};
-    const SDL_FRect coinsCard{326.0f, 7.0f, 96.0f, 23.0f};
-    const SDL_FRect goalCard{428.0f, 7.0f, 362.0f, 23.0f};
-    fillRect(renderer, dayCard, 45, 62, 57);
-    fillRect(renderer, produceCard, 45, 62, 57);
-    fillRect(renderer, coinsCard, 45, 62, 57);
-    fillRect(renderer, goalCard, 45, 62, 57);
+    // Title plaque: a deeper mahogany shade distinguishes the game identity.
+    const SDL_FRect titlePlaque{10.0f, 7.0f, 116.0f, 25.0f};
+    panel(titlePlaque);
+    const SDL_FRect titleInset{12.0f, 9.0f, 112.0f, 21.0f};
+    fillRect(renderer, titleInset, 83, 51, 33);
+    const SDL_FRect logoStem{21.0f, 14.0f, 2.0f, 12.0f};
+    const SDL_FRect logoLeafA{14.0f, 11.0f, 8.0f, 5.0f};
+    const SDL_FRect logoLeafB{22.0f, 14.0f, 7.0f, 5.0f};
+    fillRect(renderer, logoStem, 183, 157, 103);
+    fillRect(renderer, logoLeafA, 121, 174, 104);
+    fillRect(renderer, logoLeafB, 83, 143, 78);
+    SDL_SetRenderDrawColor(renderer, kParchment[0], kParchment[1],
+                           kParchment[2], 255);
+    SDL_RenderDebugText(renderer, 35.0f, 16.0f, "FARMSTEAD");
 
-    SDL_SetRenderDrawColor(renderer, 240, 230, 205, 255);
-    SDL_RenderDebugTextFormat(renderer, 132.0f, 15.0f, "DAY %02d", currentDay);
-    SDL_RenderDebugTextFormat(renderer, 210.0f, 15.0f,
-                              "PRODUCE %d", model.produceCount());
-    SDL_RenderDebugTextFormat(renderer, 334.0f, 15.0f,
-                              "COINS %d", model.coins());
-    SDL_RenderDebugText(renderer, 436.0f, 15.0f, "GOAL");
+    // Status panels share a consistent oak finish and parchment lettering.
+    const SDL_FRect dayPanel{132.0f, 7.0f, 67.0f, 25.0f};
+    const SDL_FRect bagPanel{205.0f, 7.0f, 91.0f, 25.0f};
+    const SDL_FRect coinPanel{302.0f, 7.0f, 94.0f, 25.0f};
+    const SDL_FRect goalPanel{402.0f, 7.0f, 388.0f, 25.0f};
+    panel(dayPanel);
+    panel(bagPanel);
+    panel(coinPanel);
+    panel(goalPanel);
 
-    // Objective progress bar and readable numeric progress.
+    SDL_SetRenderDrawColor(renderer, kParchment[0], kParchment[1],
+                           kParchment[2], 255);
+    SDL_RenderDebugTextFormat(renderer, 140.0f, 16.0f, "DAY %02d", currentDay);
+    SDL_RenderDebugTextFormat(renderer, 213.0f, 16.0f, "BAG %d", model.produceCount());
+    SDL_RenderDebugTextFormat(renderer, 310.0f, 16.0f, "COINS %d", model.coins());
+    SDL_RenderDebugText(renderer, 411.0f, 16.0f, "GOAL");
+
     const int target = model.objectiveTarget();
     const int earned = model.coinsEarned();
     const float progress = target > 0
         ? std::clamp(static_cast<float>(earned) / static_cast<float>(target), 0.0f, 1.0f)
         : 0.0f;
-    const SDL_FRect progressTrack{480.0f, 15.0f, 190.0f, 7.0f};
-    const SDL_FRect progressFill{480.0f, 15.0f, 190.0f * progress, 7.0f};
-    fillRect(renderer, progressTrack, 25, 35, 34);
+
+    const SDL_FRect progressTrack{454.0f, 16.0f, 235.0f, 7.0f};
+    const SDL_FRect progressFill{454.0f, 16.0f, 235.0f * progress, 7.0f};
+    fillRect(renderer, progressTrack, 51, 33, 24);
+    // A warm harvest-gold progress fill; completion gets a muted leaf-green accent.
     if (progress > 0.0f) {
-        fillRect(renderer, progressFill, 207, 169, 91);
+        fillRect(renderer, progressFill,
+                 model.objectiveCompleted() ? 132 : 218,
+                 model.objectiveCompleted() ? 166 : 166,
+                 model.objectiveCompleted() ? 105 : 83);
     }
-    SDL_SetRenderDrawColor(renderer, 240, 230, 205, 255);
-    if (model.objectiveCompleted()) {
-        SDL_RenderDebugText(renderer, 681.0f, 15.0f, "COMPLETE");
+    SDL_SetRenderDrawColor(renderer, kParchment[0], kParchment[1],
+                           kParchment[2], 255);
+    SDL_RenderDebugTextFormat(renderer, 700.0f, 16.0f, "%d/%d", earned, target);
+
+    // Message rail: darker stained wood with a tone-coloured status marker.
+    const SDL_FRect messagePanel{10.0f, 37.0f, 780.0f, 18.0f};
+    fillRect(renderer, messagePanel, 83, 53, 37);
+    SDL_SetRenderDrawColor(renderer, 159, 116, 73, 255);
+    SDL_RenderRect(renderer, &messagePanel);
+
+    std::string visibleMessage;
+    if (message.empty()) {
+        if (model.isFacingMarket()) {
+            visibleMessage = model.produceCount() > 0
+                ? "MARKET COUNTER  -  S: SELL ALL PRODUCE"
+                : "MARKET COUNTER  -  YOUR BAG IS EMPTY";
+        } else {
+            visibleMessage = "ARROWS MOVE   T TILL   P PLANT   W WATER   H HARVEST   N NEXT DAY   S SELL   E INSPECT";
+        }
     } else {
-        SDL_RenderDebugTextFormat(renderer, 681.0f, 15.0f,
-                                  "%d/%d", earned, target);
+        visibleMessage.assign(message);
     }
 
-    // Compact control strip. Text remains the built-in debug font; the paneling
-    // and spacing do the visual work without introducing another dependency.
-    const SDL_FRect controlsPanel{10.0f, 36.0f, 780.0f, 19.0f};
-    fillRect(renderer, controlsPanel, 36, 52, 49);
-    SDL_SetRenderDrawColor(renderer, 215, 210, 190, 255);
-    SDL_RenderDebugText(renderer, 18.0f, 42.0f,
-                        "ARROWS MOVE   T TILL   P PLANT   W WATER   N NEXT DAY   H HARVEST   S SELL   E INSPECT");
+    constexpr std::size_t kMaxMessageLength = 92;
+    if (visibleMessage.size() > kMaxMessageLength) {
+        visibleMessage.resize(kMaxMessageLength);
+    }
 
-    // First pass: paint all terrain. Obstacles receive grass underneath their
-    // tree artwork, so no solid black collision tiles remain visible.
+    Uint8 messageR = kParchment[0];
+    Uint8 messageG = kParchment[1];
+    Uint8 messageB = kParchment[2];
+    switch (messageTone) {
+    case HudMessageTone::SUCCESS:
+        messageR = 177; messageG = 211; messageB = 143;
+        break;
+    case HudMessageTone::WARNING:
+        messageR = 235; messageG = 157; messageB = 116;
+        break;
+    case HudMessageTone::INFO:
+    default:
+        break;
+    }
+
+    const SDL_FRect statusMark{17.0f, 42.0f, 3.0f, 8.0f};
+    fillRect(renderer, statusMark, messageR, messageG, messageB);
+    SDL_SetRenderDrawColor(renderer, messageR, messageG, messageB, 255);
+    SDL_RenderDebugText(renderer, 27.0f, 42.0f, visibleMessage.c_str());
+}
+
+} // namespace
+
+void renderWorld(SDL_Renderer* renderer, const GameModel& model, int currentDay,
+                 std::string_view message, HudMessageTone messageTone) {
+    SDL_SetRenderDrawColor(renderer, 31, 47, 43, 255);
+    SDL_RenderClear(renderer);
+
+    drawHud(renderer, model, currentDay, message, messageTone);
+
+    // First pass: terrain. Market tiles have a timber base; tree tiles retain
+    // grass beneath their canopy and trunk artwork.
     for (int row = 0; row < model.mapHeight(); ++row) {
         for (int column = 0; column < model.mapWidth(); ++column) {
             const TileType type = model.tileAt(column, row);
@@ -436,9 +519,8 @@ void renderWorld(SDL_Renderer* renderer, const GameModel& model, int currentDay)
         }
     }
 
-    // Draw the market last because its canopy and counter span several tiles.
-    const TilePosition marketPosition =
-    GameModel::kMarketInteractionPosition;
+    // Draw the multi-tile market exactly once, anchored to the customer-facing tile.
+    const TilePosition marketPosition = GameModel::kMarketInteractionPosition;
     drawMarket(renderer, marketPosition.column, marketPosition.row);
 
     // Highlight the tile the player is currently facing.
