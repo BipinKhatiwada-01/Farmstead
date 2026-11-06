@@ -142,7 +142,7 @@ void drawMarket(SDL_Renderer* renderer, int column, int row) {
     const float interactionX = kMapOffsetX + static_cast<float>(column) * kTileSize;
     const float interactionY = kMapOffsetY + static_cast<float>(row) * kTileSize;
     const float x = interactionX - kTileSize;
-    const float y = interactionY - 2.0f * kTileSize;
+    const float y = interactionY - kTileSize;
 
     const auto part = [&](float px, float py, float width, float height,
                           Uint8 red, Uint8 green, Uint8 blue) {
@@ -437,7 +437,8 @@ void renderWorld(SDL_Renderer* renderer, const GameModel& model, int currentDay)
     }
 
     // Draw the market last because its canopy and counter span several tiles.
-    const TilePosition marketPosition = GameModel::kMarketPosition;
+    const TilePosition marketPosition =
+    GameModel::kMarketInteractionPosition;
     drawMarket(renderer, marketPosition.column, marketPosition.row);
 
     // Highlight the tile the player is currently facing.
