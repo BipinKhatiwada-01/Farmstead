@@ -51,7 +51,6 @@ int main() {
     }
 
     farmstead::GameModel model;
-    int currentDay = 1;
     bool running = true;
     std::string hudMessage;
     farmstead::render::HudMessageTone hudMessageTone =
@@ -82,11 +81,14 @@ int main() {
                     if (event.key.key == SDLK_UP)    direction = farmstead::Direction::UP;
 
                     const bool moved = model.tryMove(direction);
-                    if (moved) {
-                        hudMessage.clear();
-                    } else if (model.isFacingMarket()) {
+                    if (model.isFacingMarket()) {
                         setHudMessage("MARKET COUNTER  -  PRESS S TO SELL ALL PRODUCE",
                                       farmstead::render::HudMessageTone::INFO);
+                    } else if (model.isFacingFarmhouse()) {
+                        setHudMessage("FRONT DOOR  -  PRESS B TO SLEEP",
+                                      farmstead::render::HudMessageTone::INFO);
+                    } else if (moved) {
+                        hudMessage.clear();
                     } else {
                         setHudMessage("THAT WAY IS BLOCKED",
                                       farmstead::render::HudMessageTone::WARNING);
@@ -107,6 +109,14 @@ int main() {
                     if (type == farmstead::TileType::MARKET) {
                         setHudMessage("MARKET COUNTER  -  PRESS S TO SELL ALL PRODUCE",
                                       farmstead::render::HudMessageTone::INFO);
+                    } else if (type == farmstead::TileType::FARMHOUSE) {
+                        if (model.isFacingFarmhouse()) {
+                            setHudMessage("FRONT DOOR  -  PRESS B TO SLEEP",
+                                          farmstead::render::HudMessageTone::INFO);
+                        } else {
+                            setHudMessage("FARMHOUSE  -  FIND THE FRONT DOOR TO SLEEP",
+                                          farmstead::render::HudMessageTone::INFO);
+                        }
                     } else if (type == farmstead::TileType::OBSTACLE) {
                         setHudMessage("A TREE BLOCKS THE WAY",
                                       farmstead::render::HudMessageTone::INFO);
@@ -166,10 +176,22 @@ int main() {
                 }
 
                 case SDLK_N:
+                    // Development shortcut. Normal gameplay advances the day by sleeping.
                     model.advanceDay();
-                    ++currentDay;
-                    setHudMessage("DAY " + std::to_string(currentDay) + " BEGINS",
-                                  farmstead::render::HudMessageTone::SUCCESS);
+                    setHudMessage("DEVELOPER SHORTCUT  -  DAY " +
+                                      std::to_string(model.currentDay()) + " BEGINS",
+                                  farmstead::render::HudMessageTone::INFO);
+                    break;
+
+                case SDLK_B:
+                    if (model.trySleep()) {
+                        setHudMessage("YOU RESTED WELL  -  DAY " +
+                                          std::to_string(model.currentDay()) + " BEGINS",
+                                      farmstead::render::HudMessageTone::SUCCESS);
+                    } else {
+                        setHudMessage("FACE THE FARMHOUSE FRONT DOOR TO SLEEP",
+                                      farmstead::render::HudMessageTone::WARNING);
+                    }
                     break;
 
                 case SDLK_H: {
@@ -221,7 +243,7 @@ int main() {
         }
 
         farmstead::render::renderWorld(
-            renderPointer, model, currentDay, hudMessage, hudMessageTone);
+            renderPointer, model, hudMessage, hudMessageTone);
     }
 
     SDL_DestroyRenderer(renderPointer);

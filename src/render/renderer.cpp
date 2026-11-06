@@ -109,6 +109,15 @@ void drawGroundTile(SDL_Renderer* renderer, int column, int row,
         return;
     }
 
+    if (type == TileType::FARMHOUSE) {
+        // Warm stone foundation beneath the farmhouse footprint.
+        fillRect(renderer, tile, 119, 91, 66);
+        const SDL_FRect inset{tile.x + 3.0f, tile.y + 3.0f,
+                              tile.w - 6.0f, tile.h - 6.0f};
+        fillRect(renderer, inset, 143, 111, 79);
+        return;
+    }
+
     if (tilled) {
         fillRect(renderer, tile, 130, 85, 50);
         const SDL_FRect furrowA{tile.x + 5.0f, tile.y + 11.0f, 30.0f, 2.0f};
@@ -196,6 +205,87 @@ void drawMarket(SDL_Renderer* renderer, int column, int row) {
     part(69.0f, 38.0f, 5.0f, 6.0f, 224, 181, 74);
     part(84.0f, 39.0f, 6.0f, 5.0f, 224, 181, 74);
     part(92.0f, 38.0f, 6.0f, 6.0f, 177, 61, 53);
+}
+
+
+void drawFarmhouse(SDL_Renderer* renderer, int column, int row) {
+    // The model exposes the top-left footprint tile. The exterior is drawn as
+    // one 3x3-tile structure; the bottom-middle footprint tile is its door target.
+    const float x = kMapOffsetX + static_cast<float>(column) * kTileSize;
+    const float y = kMapOffsetY + static_cast<float>(row) * kTileSize;
+
+    const auto part = [&](float px, float py, float width, float height,
+                          Uint8 red, Uint8 green, Uint8 blue) {
+        const SDL_FRect rect{x + px, y + py, width, height};
+        fillRect(renderer, rect, red, green, blue);
+    };
+
+    // Ground shadow and foundation.
+    part(5.0f, 108.0f, 110.0f, 9.0f, 32, 54, 38);
+    part(8.0f, 103.0f, 104.0f, 12.0f, 91, 70, 52);
+    part(12.0f, 105.0f, 96.0f, 3.0f, 158, 123, 82);
+
+    // Chimney sits behind the roof.
+    part(87.0f, 0.0f, 19.0f, 36.0f, 60, 43, 36);
+    part(90.0f, 3.0f, 13.0f, 31.0f, 139, 91, 67);
+    part(87.0f, 0.0f, 19.0f, 5.0f, 79, 54, 43);
+    part(92.0f, 10.0f, 9.0f, 2.0f, 174, 119, 84);
+
+    // Main roof silhouette: stepped edges create a compact shingled profile.
+    part(-2.0f, 22.0f, 124.0f, 39.0f, 57, 36, 31);
+    part(7.0f, 13.0f, 106.0f, 15.0f, 57, 36, 31);
+    part(17.0f, 5.0f, 86.0f, 14.0f, 57, 36, 31);
+
+    part(1.0f, 23.0f, 118.0f, 32.0f, 132, 67, 52);
+    part(9.0f, 15.0f, 102.0f, 12.0f, 148, 76, 57);
+    part(20.0f, 7.0f, 80.0f, 11.0f, 157, 83, 61);
+
+    // Roof ridge and shingle bands.
+    part(28.0f, 8.0f, 63.0f, 3.0f, 187, 111, 76);
+    part(12.0f, 19.0f, 95.0f, 2.0f, 181, 98, 70);
+    part(5.0f, 35.0f, 110.0f, 2.0f, 103, 51, 43);
+    part(5.0f, 52.0f, 110.0f, 7.0f, 84, 49, 39);
+    part(8.0f, 53.0f, 104.0f, 2.0f, 187, 119, 82);
+
+    // Warm timber walls, with a darker outline and corner posts.
+    part(12.0f, 56.0f, 96.0f, 49.0f, 91, 57, 39);
+    part(16.0f, 59.0f, 88.0f, 43.0f, 202, 159, 105);
+    part(16.0f, 59.0f, 88.0f, 4.0f, 220, 181, 127);
+    part(18.0f, 65.0f, 84.0f, 2.0f, 173, 126, 82);
+    part(18.0f, 94.0f, 84.0f, 2.0f, 173, 126, 82);
+    part(16.0f, 59.0f, 5.0f, 43.0f, 169, 119, 76);
+    part(99.0f, 59.0f, 5.0f, 43.0f, 169, 119, 76);
+
+    // Left window: cool glass with a warm wooden frame.
+    part(22.0f, 70.0f, 25.0f, 23.0f, 83, 51, 37);
+    part(25.0f, 73.0f, 19.0f, 17.0f, 76, 112, 116);
+    part(26.0f, 74.0f, 17.0f, 5.0f, 117, 157, 151);
+    part(33.0f, 73.0f, 3.0f, 17.0f, 184, 146, 99);
+    part(21.0f, 69.0f, 27.0f, 3.0f, 226, 188, 131);
+    part(21.0f, 92.0f, 27.0f, 3.0f, 112, 73, 49);
+
+    // Right window: a tiny glimpse of the warm bedroom and bed inside.
+    part(73.0f, 70.0f, 25.0f, 23.0f, 83, 51, 37);
+    part(76.0f, 73.0f, 19.0f, 17.0f, 66, 82, 79);
+    part(78.0f, 78.0f, 15.0f, 9.0f, 193, 157, 111); // bed frame / blanket
+    part(78.0f, 76.0f, 6.0f, 5.0f, 239, 222, 184);  // pillow
+    part(86.0f, 79.0f, 7.0f, 8.0f, 121, 151, 111);  // folded cover
+    part(84.0f, 73.0f, 3.0f, 17.0f, 184, 146, 99);
+    part(72.0f, 69.0f, 27.0f, 3.0f, 226, 188, 131);
+    part(72.0f, 92.0f, 27.0f, 3.0f, 112, 73, 49);
+
+    // Central front door aligns with the model's (16,7) interaction tile.
+    part(49.0f, 70.0f, 22.0f, 35.0f, 76, 46, 33);
+    part(52.0f, 73.0f, 16.0f, 29.0f, 126, 78, 48);
+    part(54.0f, 76.0f, 12.0f, 2.0f, 163, 111, 67);
+    part(54.0f, 82.0f, 12.0f, 2.0f, 163, 111, 67);
+    part(54.0f, 88.0f, 12.0f, 2.0f, 163, 111, 67);
+    part(64.0f, 87.0f, 2.0f, 2.0f, 222, 185, 116); // brass handle
+    part(47.0f, 69.0f, 26.0f, 3.0f, 222, 185, 116);
+
+    // A short stone doorstep below the door.
+    part(43.0f, 105.0f, 34.0f, 7.0f, 149, 127, 101);
+    part(46.0f, 106.0f, 28.0f, 2.0f, 193, 171, 137);
 }
 
 void drawCrop(SDL_Renderer* renderer, int column, int row,
@@ -336,7 +426,7 @@ void drawPlayer(SDL_Renderer* renderer, TilePosition position, Direction facing)
     }
 }
 
-void drawHud(SDL_Renderer* renderer, const GameModel& model, int currentDay,
+void drawHud(SDL_Renderer* renderer, const GameModel& model,
              std::string_view message, HudMessageTone messageTone) {
     // Warm walnut, oak and parchment palette. The green remains only as a
     // restrained gameplay accent rather than the dominant HUD colour.
@@ -410,7 +500,7 @@ void drawHud(SDL_Renderer* renderer, const GameModel& model, int currentDay,
 
     SDL_SetRenderDrawColor(renderer, kParchment[0], kParchment[1],
                            kParchment[2], 255);
-    SDL_RenderDebugTextFormat(renderer, 140.0f, 16.0f, "DAY %02d", currentDay);
+    SDL_RenderDebugTextFormat(renderer, 140.0f, 16.0f, "DAY %02d", model.currentDay());
     SDL_RenderDebugTextFormat(renderer, 213.0f, 16.0f, "BAG %d", model.produceCount());
     SDL_RenderDebugTextFormat(renderer, 310.0f, 16.0f, "COINS %d", model.coins());
     SDL_RenderDebugText(renderer, 411.0f, 16.0f, "GOAL");
@@ -447,8 +537,10 @@ void drawHud(SDL_Renderer* renderer, const GameModel& model, int currentDay,
             visibleMessage = model.produceCount() > 0
                 ? "MARKET COUNTER  -  S: SELL ALL PRODUCE"
                 : "MARKET COUNTER  -  YOUR BAG IS EMPTY";
+        } else if (model.isFacingFarmhouse()) {
+            visibleMessage = "FARMHOUSE FRONT DOOR  -  B: REST FOR THE NIGHT";
         } else {
-            visibleMessage = "ARROWS MOVE   T TILL   P PLANT   W WATER   H HARVEST   N NEXT DAY   S SELL   E INSPECT";
+            visibleMessage = "ARROWS MOVE   T TILL   P PLANT   W WATER   H HARVEST   S SELL   B SLEEP   E INSPECT";
         }
     } else {
         visibleMessage.assign(message);
@@ -482,12 +574,12 @@ void drawHud(SDL_Renderer* renderer, const GameModel& model, int currentDay,
 
 } // namespace
 
-void renderWorld(SDL_Renderer* renderer, const GameModel& model, int currentDay,
+void renderWorld(SDL_Renderer* renderer, const GameModel& model,
                  std::string_view message, HudMessageTone messageTone) {
     SDL_SetRenderDrawColor(renderer, 31, 47, 43, 255);
     SDL_RenderClear(renderer);
 
-    drawHud(renderer, model, currentDay, message, messageTone);
+    drawHud(renderer, model, message, messageTone);
 
     // First pass: terrain. Market tiles have a timber base; tree tiles retain
     // grass beneath their canopy and trunk artwork.
@@ -519,9 +611,12 @@ void renderWorld(SDL_Renderer* renderer, const GameModel& model, int currentDay,
         }
     }
 
-    // Draw the multi-tile market exactly once, anchored to the customer-facing tile.
+    // Draw each multi-tile building once; their model footprints handle collision.
     const TilePosition marketPosition = GameModel::kMarketInteractionPosition;
     drawMarket(renderer, marketPosition.column, marketPosition.row);
+
+    const TilePosition farmhouseTopLeft = GameModel::kFarmhouseFootprint.front();
+    drawFarmhouse(renderer, farmhouseTopLeft.column, farmhouseTopLeft.row);
 
     // Highlight the tile the player is currently facing.
     const TilePosition targetTile = model.tileInFront();

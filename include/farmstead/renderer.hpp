@@ -14,10 +14,10 @@ enum class HudMessageTone {
     WARNING
 };
 
-// Draws the HUD, world, crops, market, target tile and player, then presents
-// the frame. The optional message is application feedback shown in the HUD;
-// game rules remain inside GameModel.
-void renderWorld(SDL_Renderer* renderer, const GameModel& model, int currentDay,
+// Draws the HUD, world, crops, market, farmhouse, target tile and player, then
+// presents the frame. Day state is read from GameModel; feedback is supplied
+// by the SDL application while game rules remain inside GameModel.
+void renderWorld(SDL_Renderer* renderer, const GameModel& model,
                  std::string_view message = {},
                  HudMessageTone messageTone = HudMessageTone::INFO);
 
