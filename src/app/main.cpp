@@ -97,31 +97,38 @@ int main() {
                 }
 
                 case SDLK_E: {
-                    const farmstead::TilePosition target = model.tileInFront();
-                    if (!model.isInBounds(target.column, target.row)) {
-                        setHudMessage("NOTHING THERE - OUTSIDE THE MAP",
-                                      farmstead::render::HudMessageTone::WARNING);
-                        break;
+                    // Inspect buildings and obstacles in front of the player.
+                    // For ordinary ground, inspect the tile underfoot so the
+                    // suggested farming action matches the T/P/W/H controls.
+                    const farmstead::TilePosition frontTile = model.tileInFront();
+                    if (model.isInBounds(frontTile.column, frontTile.row)) {
+                        const farmstead::TileType frontType =
+                            model.tileAt(frontTile.column, frontTile.row);
+                        if (frontType == farmstead::TileType::MARKET) {
+                            setHudMessage("MARKET COUNTER  -  PRESS S TO SELL ALL PRODUCE",
+                                          farmstead::render::HudMessageTone::INFO);
+                            break;
+                        }
+                        if (frontType == farmstead::TileType::FARMHOUSE) {
+                            if (model.isFacingFarmhouse()) {
+                                setHudMessage("FRONT DOOR  -  PRESS B TO SLEEP",
+                                              farmstead::render::HudMessageTone::INFO);
+                            } else {
+                                setHudMessage("FARMHOUSE  -  FIND THE FRONT DOOR TO SLEEP",
+                                              farmstead::render::HudMessageTone::INFO);
+                            }
+                            break;
+                        }
+                        if (frontType == farmstead::TileType::OBSTACLE) {
+                            setHudMessage("A TREE BLOCKS THE WAY",
+                                          farmstead::render::HudMessageTone::INFO);
+                            break;
+                        }
                     }
 
-                    const farmstead::TileType type =
-                        model.tileAt(target.column, target.row);
-                    if (type == farmstead::TileType::MARKET) {
-                        setHudMessage("MARKET COUNTER  -  PRESS S TO SELL ALL PRODUCE",
-                                      farmstead::render::HudMessageTone::INFO);
-                    } else if (type == farmstead::TileType::FARMHOUSE) {
-                        if (model.isFacingFarmhouse()) {
-                            setHudMessage("FRONT DOOR  -  PRESS B TO SLEEP",
-                                          farmstead::render::HudMessageTone::INFO);
-                        } else {
-                            setHudMessage("FARMHOUSE  -  FIND THE FRONT DOOR TO SLEEP",
-                                          farmstead::render::HudMessageTone::INFO);
-                        }
-                    } else if (type == farmstead::TileType::OBSTACLE) {
-                        setHudMessage("A TREE BLOCKS THE WAY",
-                                      farmstead::render::HudMessageTone::INFO);
-                    } else if (model.cropStageAt(target.column, target.row) ==
-                               farmstead::CropStage::MATURE) {
+                    const farmstead::TilePosition target = model.playerPosition();
+                    if (model.cropStageAt(target.column, target.row) ==
+                        farmstead::CropStage::MATURE) {
                         setHudMessage("MATURE CROP  -  PRESS H TO HARVEST",
                                       farmstead::render::HudMessageTone::SUCCESS);
                     } else if (model.isPlanted(target.column, target.row)) {
@@ -139,8 +146,9 @@ int main() {
                     break;
                 }
 
+                // Farming actions operate on the tile occupied by the player.
                 case SDLK_T: {
-                    const farmstead::TilePosition target = model.tileInFront();
+                    const farmstead::TilePosition target = model.playerPosition();
                     if (model.tryTill(target.column, target.row)) {
                         setHudMessage("SOIL PREPARED  -  PRESS P TO PLANT",
                                       farmstead::render::HudMessageTone::SUCCESS);
@@ -152,7 +160,7 @@ int main() {
                 }
 
                 case SDLK_P: {
-                    const farmstead::TilePosition target = model.tileInFront();
+                    const farmstead::TilePosition target = model.playerPosition();
                     if (model.tryPlant(target.column, target.row)) {
                         setHudMessage("SEED PLANTED  -  WATER IT TO HELP IT GROW",
                                       farmstead::render::HudMessageTone::SUCCESS);
@@ -164,7 +172,7 @@ int main() {
                 }
 
                 case SDLK_W: {
-                    const farmstead::TilePosition target = model.tileInFront();
+                    const farmstead::TilePosition target = model.playerPosition();
                     if (model.tryWater(target.column, target.row)) {
                         setHudMessage("CROP WATERED",
                                       farmstead::render::HudMessageTone::SUCCESS);
@@ -195,7 +203,7 @@ int main() {
                     break;
 
                 case SDLK_H: {
-                    const farmstead::TilePosition target = model.tileInFront();
+                    const farmstead::TilePosition target = model.playerPosition();
                     if (model.tryHarvest(target.column, target.row)) {
                         setHudMessage("HARVESTED  -  PRODUCE ADDED TO YOUR BAG",
                                       farmstead::render::HudMessageTone::SUCCESS);

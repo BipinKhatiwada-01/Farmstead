@@ -618,15 +618,16 @@ void renderWorld(SDL_Renderer* renderer, const GameModel& model,
     const TilePosition farmhouseTopLeft = GameModel::kFarmhouseFootprint.front();
     drawFarmhouse(renderer, farmhouseTopLeft.column, farmhouseTopLeft.row);
 
-    // Highlight the tile the player is currently facing.
-    const TilePosition targetTile = model.tileInFront();
-    if (model.isInBounds(targetTile.column, targetTile.row)) {
+    // Highlight the tile occupied by the player. Draw the outline first so
+    // the player sprite appears on top of it, with the border still visible.
+    const TilePosition playerTile = model.playerPosition();
+    if (model.isInBounds(playerTile.column, playerTile.row)) {
         SDL_SetRenderDrawColor(renderer, 246, 224, 160, 255);
-        const SDL_FRect targetRect = makeTileRect(targetTile.column, targetTile.row);
-        SDL_RenderRect(renderer, &targetRect);
+        const SDL_FRect playerTileRect = makeTileRect(playerTile.column, playerTile.row);
+        SDL_RenderRect(renderer, &playerTileRect);
     }
 
-    drawPlayer(renderer, model.playerPosition(), model.facingDirection());
+    drawPlayer(renderer, playerTile, model.facingDirection());
     SDL_RenderPresent(renderer);
 }
 
