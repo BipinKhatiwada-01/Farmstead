@@ -9,6 +9,8 @@ public:
 
   bool addCoins(int amount);
 
+  bool canAddCoins(int amount) const;
+
 private:
   int currency{0};
 
