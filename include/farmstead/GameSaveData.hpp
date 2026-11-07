@@ -9,7 +9,6 @@ struct CropSaveData {
   TilePosition position;
   int growthPoints;
   bool wateredToday;
-  CropStage stage;
 };
 
 struct GameSaveData {
@@ -21,9 +20,8 @@ struct GameSaveData {
   std::vector<TilePosition> tilledTiles;
   std::vector<CropSaveData> crops;
 
-  int inventoryProduce;
+  int produce;
   int coins;
   int totalCoinsEarned;
-  int progression;
 };
 } // namespace farmstead

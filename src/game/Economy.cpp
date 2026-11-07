@@ -39,3 +39,11 @@ bool Economy::canAddCoins(int amount) const {
 
   return true;
 }
+
+bool Economy::restoreState(int currency) {
+  if (currency < 0) {
+    return false;
+  }
+  this->currency = currency;
+  return true;
+}

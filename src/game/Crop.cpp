@@ -29,4 +29,16 @@ CropStage Crop::stage() const {
   return CropStage::SEED;
 }
 
+int Crop::getGrowthPoints() const { return growthPoints; }
+
+bool Crop::restoreState(int points, bool watered) {
+  if (points < 0) {
+    return false;
+  }
+
+  growthPoints = points;
+  wateredToday = watered;
+  return true;
+}
+
 }; // namespace farmstead

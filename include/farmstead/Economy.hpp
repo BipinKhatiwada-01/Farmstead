@@ -11,6 +11,8 @@ public:
 
   bool canAddCoins(int amount) const;
 
+  bool restoreState(int currency);
+
 private:
   int currency{0};
 

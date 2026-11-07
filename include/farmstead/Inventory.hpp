@@ -9,6 +9,8 @@ public:
 
   int produceCount() const;
 
+  bool restoreState(int produce);
+
 private:
   int produce{0};
 };

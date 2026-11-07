@@ -25,3 +25,11 @@ bool Progression::canRecordCoins(int amount) const {
 
   return true;
 }
+
+bool Progression::restoreState(int totalCoinsEarned) {
+  if (totalCoinsEarned < 0) {
+    return false;
+  }
+  this->totalCoinsEarned = totalCoinsEarned;
+  return true;
+}
