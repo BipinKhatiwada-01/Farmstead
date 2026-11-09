@@ -114,6 +114,21 @@ if(BUILD_TESTING)
     )
 
     add_farmstead_test(
+        game-model-persistence-tests
+        tests/integration/game_model_persistence_test.cpp
+    )
+
+    add_farmstead_test(
+        save-system-integration-tests
+        tests/integration/save_system_test.cpp
+    )
+    target_link_libraries(
+        save-system-integration-tests
+        PRIVATE
+            nlohmann_json::nlohmann_json
+    )
+
+    add_farmstead_test(
         economy-integration-tests
         tests/integration/economy_integration_test.cpp
     )
