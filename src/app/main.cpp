@@ -1,11 +1,13 @@
 #include <SDL3/SDL.h>
 
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <utility>
 
 #include "farmstead/audio_system.hpp"
 #include "farmstead/game_model.hpp"
+#include "farmstead/SaveSystem.hpp"
 #include "farmstead/renderer.hpp"
 
 namespace {
@@ -27,8 +29,12 @@ enum class PauseAction {
     QUIT_GAME
 };
 
-constexpr int kTitleOptionCount = 2;
-constexpr int kPauseOptionCount = 4;
+constexpr int kTitleOptionCount = 3;
+constexpr int kPauseOptionCount = 5;
+
+// One local save slot for the current game. The directory is created when
+// saving, and Continue is enabled only when this file can be loaded.
+const std::filesystem::path kSavePath{"saves/slot1.json"};
 
 int wrapSelection(int selection, int direction, int optionCount) {
     selection += direction;
@@ -38,6 +44,25 @@ int wrapSelection(int selection, int direction, int optionCount) {
         selection = 0;
     }
     return selection;
+}
+
+int wrapTitleSelection(int selection, int direction, bool hasSaveGame) {
+    do {
+        selection = wrapSelection(selection, direction, kTitleOptionCount);
+    } while (!hasSaveGame && selection == 1); // Skip unavailable Continue.
+    return selection;
+}
+
+bool isUsableSave(const std::filesystem::path& path) {
+    std::error_code error;
+    if (!std::filesystem::is_regular_file(path, error) || error) {
+        return false;
+    }
+
+    // Validate the file before enabling Continue. Loading into a temporary
+    // model prevents the title screen from mutating the active game.
+    farmstead::GameModel probe;
+    return farmstead::SaveSystem::load(probe, path);
 }
 
 } // namespace
@@ -87,6 +112,8 @@ int main() {
     ApplicationState applicationState = ApplicationState::TITLE;
     PauseAction pendingPauseAction = PauseAction::NONE;
 
+    bool hasSaveGame = isUsableSave(kSavePath);
+    std::string titleMessage;
     int titleSelection = 0;
     int pauseSelection = 0;
     int confirmationSelection = 1; // Default to NO for destructive actions.
@@ -102,10 +129,53 @@ int main() {
         hudMessageTone = tone;
     };
 
+    const auto saveCurrentGame = [&]() {
+        std::error_code directoryError;
+        std::filesystem::create_directories(kSavePath.parent_path(),
+                                            directoryError);
+        if (directoryError) {
+            setHudMessage("SAVE FAILED  -  COULD NOT CREATE SAVE DIRECTORY",
+                          farmstead::render::HudMessageTone::WARNING);
+            return false;
+        }
+
+        if (!farmstead::SaveSystem::save(model, kSavePath)) {
+            setHudMessage("SAVE FAILED  -  YOUR PREVIOUS SAVE WAS KEPT",
+                          farmstead::render::HudMessageTone::WARNING);
+            return false;
+        }
+
+        hasSaveGame = true;
+        setHudMessage("GAME SAVED SUCCESSFULLY",
+                      farmstead::render::HudMessageTone::SUCCESS);
+        return true;
+    };
+
+    const auto continueSavedGame = [&]() {
+        farmstead::GameModel loadedModel;
+        if (!farmstead::SaveSystem::load(loadedModel, kSavePath)) {
+            hasSaveGame = false;
+            titleSelection = 0;
+            titleMessage = "SAVE COULD NOT BE LOADED";
+            audio.play(farmstead::SoundEffect::MENU_MOVE);
+            return false;
+        }
+
+        model = std::move(loadedModel);
+        titleMessage.clear();
+        setHudMessage("WELCOME BACK  -  DAY " +
+                          std::to_string(model.currentDay()),
+                      farmstead::render::HudMessageTone::SUCCESS);
+        applicationState = ApplicationState::PLAYING;
+        audio.play(farmstead::SoundEffect::MENU_CONFIRM);
+        return true;
+    };
+
     const auto startNewFarm = [&]() {
         model = farmstead::GameModel{};
         hudMessage.clear();
         hudMessageTone = farmstead::render::HudMessageTone::INFO;
+        titleMessage.clear();
         applicationState = ApplicationState::PLAYING;
     };
 
@@ -132,19 +202,22 @@ int main() {
             switch (applicationState) {
             case ApplicationState::TITLE:
                 if (key == SDLK_UP) {
-                    titleSelection = wrapSelection(titleSelection, -1,
-                                                   kTitleOptionCount);
+                    titleSelection = wrapTitleSelection(titleSelection, -1,
+                                                        hasSaveGame);
                     audio.play(farmstead::SoundEffect::MENU_MOVE);
                 } else if (key == SDLK_DOWN) {
-                    titleSelection = wrapSelection(titleSelection, 1,
-                                                   kTitleOptionCount);
+                    titleSelection = wrapTitleSelection(titleSelection, 1,
+                                                        hasSaveGame);
                     audio.play(farmstead::SoundEffect::MENU_MOVE);
                 } else if (key == SDLK_RETURN || key == SDLK_KP_ENTER ||
                            key == SDLK_SPACE) {
-                    audio.play(farmstead::SoundEffect::MENU_CONFIRM);
                     if (titleSelection == 0) {
+                        audio.play(farmstead::SoundEffect::MENU_CONFIRM);
                         startNewFarm();
-                    } else {
+                    } else if (titleSelection == 1 && hasSaveGame) {
+                        continueSavedGame();
+                    } else if (titleSelection == 2) {
+                        audio.play(farmstead::SoundEffect::MENU_CONFIRM);
                         running = false;
                     }
                 } else if (key == SDLK_ESCAPE) {
@@ -411,12 +484,15 @@ int main() {
                         applicationState = ApplicationState::PLAYING;
                         break;
                     case 1:
-                        beginPauseConfirmation(PauseAction::RESTART_FARM);
+                        saveCurrentGame();
                         break;
                     case 2:
-                        beginPauseConfirmation(PauseAction::RETURN_TO_TITLE);
+                        beginPauseConfirmation(PauseAction::RESTART_FARM);
                         break;
                     case 3:
+                        beginPauseConfirmation(PauseAction::RETURN_TO_TITLE);
+                        break;
+                    case 4:
                         beginPauseConfirmation(PauseAction::QUIT_GAME);
                         break;
                     default:
@@ -438,23 +514,24 @@ int main() {
 
         switch (applicationState) {
         case ApplicationState::TITLE:
-            audio.setAmbienceGain(0.34f);
+            audio.setAmbienceGain(0.45f);
             break;
         case ApplicationState::PLAYING:
-            audio.setAmbienceGain(0.42f);
+            audio.setAmbienceGain(0.55f);
             break;
         case ApplicationState::PAUSED:
-            audio.setAmbienceGain(0.20f);
+            audio.setAmbienceGain(0.27f);
             break;
         case ApplicationState::VICTORY:
-            audio.setAmbienceGain(0.30f);
+            audio.setAmbienceGain(0.40f);
             break;
         }
         audio.update();
 
         switch (applicationState) {
         case ApplicationState::TITLE:
-            farmstead::render::renderTitleScreen(renderPointer, titleSelection);
+            farmstead::render::renderTitleScreen(
+                renderPointer, titleSelection, hasSaveGame, titleMessage);
             break;
 
         case ApplicationState::PLAYING:
