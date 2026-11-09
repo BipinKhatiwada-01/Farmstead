@@ -701,7 +701,19 @@ void drawWoodPanel(SDL_Renderer* renderer, const SDL_FRect& rect) {
 }
 
 void drawMenuOption(SDL_Renderer* renderer, const SDL_FRect& rect,
-                    const char* label, bool selected) {
+                    const char* label, bool selected, bool enabled = true) {
+    if (!enabled) {
+        fillRect(renderer, rect, 48, 39, 31);
+        const SDL_FRect topEdge{rect.x + 3.0f, rect.y + 2.0f,
+                                rect.w - 6.0f, 1.0f};
+        fillRect(renderer, topEdge, 83, 69, 53);
+        SDL_SetRenderDrawColor(renderer, 113, 101, 84, 255);
+        SDL_RenderRect(renderer, &rect);
+        SDL_SetRenderDrawColor(renderer, 145, 132, 111, 255);
+        SDL_RenderDebugText(renderer, rect.x + 27.0f, rect.y + 10.0f, label);
+        return;
+    }
+
     if (selected) {
         const SDL_FRect outerGlow{rect.x - 2.0f, rect.y - 2.0f,
                                   rect.w + 4.0f, rect.h + 4.0f};
@@ -791,7 +803,8 @@ void renderWorld(SDL_Renderer* renderer, const GameModel& model,
     SDL_RenderPresent(renderer);
 }
 
-void renderTitleScreen(SDL_Renderer* renderer, int selectedOption) {
+void renderTitleScreen(SDL_Renderer* renderer, int selectedOption,
+                       bool hasSaveGame, std::string_view message) {
     SDL_SetRenderDrawColor(renderer, 30, 49, 42, 255);
     SDL_RenderClear(renderer);
 
@@ -883,21 +896,34 @@ void renderTitleScreen(SDL_Renderer* renderer, int selectedOption) {
     SDL_RenderDebugText(renderer, 293.0f, 151.0f,
                         "A SMALL LIFE ON THE LAND");
 
-    // Menu panel with clearly separated heading, actions and keyboard hint.
-    const SDL_FRect menuPanel{270.0f, 333.0f, 260.0f, 166.0f};
+    // Menu panel with New Farm, Continue and Quit.
+    const SDL_FRect menuPanel{270.0f, 325.0f, 260.0f, 225.0f};
     drawWoodPanel(renderer, menuPanel);
     SDL_SetRenderDrawColor(renderer, 249, 231, 198, 255);
-    SDL_RenderDebugText(renderer, 347.0f, 354.0f, "BEGIN YOUR STORY");
-    const SDL_FRect divider{292.0f, 371.0f, 216.0f, 1.0f};
+    SDL_RenderDebugText(renderer, 347.0f, 345.0f, "BEGIN YOUR STORY");
+    const SDL_FRect divider{292.0f, 363.0f, 216.0f, 1.0f};
     fillRect(renderer, divider, 158, 112, 75);
 
-    const SDL_FRect newFarmOption{300.0f, 382.0f, 200.0f, 34.0f};
-    const SDL_FRect quitOption{300.0f, 427.0f, 200.0f, 34.0f};
+    const SDL_FRect newFarmOption{300.0f, 376.0f, 200.0f, 34.0f};
+    const SDL_FRect continueOption{300.0f, 419.0f, 200.0f, 34.0f};
+    const SDL_FRect quitOption{300.0f, 462.0f, 200.0f, 34.0f};
     drawMenuOption(renderer, newFarmOption, "NEW FARM", selectedOption == 0);
-    drawMenuOption(renderer, quitOption, "QUIT GAME", selectedOption == 1);
+    drawMenuOption(renderer, continueOption, "CONTINUE", selectedOption == 1,
+                   hasSaveGame);
+    drawMenuOption(renderer, quitOption, "QUIT GAME", selectedOption == 2);
+
+    SDL_SetRenderDrawColor(renderer, 171, 148, 118, 255);
+    if (!hasSaveGame) {
+        SDL_RenderDebugText(renderer, 329.0f, 508.0f, "NO SAVED FARM FOUND");
+    }
+    if (!message.empty()) {
+        const std::string titleStatus(message);
+        SDL_SetRenderDrawColor(renderer, 237, 190, 139, 255);
+        SDL_RenderDebugText(renderer, 301.0f, 553.0f, titleStatus.c_str());
+    }
 
     SDL_SetRenderDrawColor(renderer, 244, 225, 191, 255);
-    SDL_RenderDebugText(renderer, 286.0f, 535.0f,
+    SDL_RenderDebugText(renderer, 286.0f, 579.0f,
                         "ARROWS SELECT     ENTER CONFIRM");
     SDL_SetRenderDrawColor(renderer, 190, 169, 136, 255);
     SDL_RenderDebugText(renderer, 326.0f, 618.0f,
@@ -925,8 +951,8 @@ void renderPauseMenu(SDL_Renderer* renderer, const GameModel& model,
         SDL_SetRenderDrawColor(renderer, 250, 225, 188, 255);
         SDL_RenderDebugText(renderer, 220.0f, 274.0f, message.c_str());
         SDL_SetRenderDrawColor(renderer, 220, 190, 151, 255);
-        SDL_RenderDebugText(renderer, 270.0f, 307.0f,
-                            "UNSAVED PROGRESS WILL BE LOST");
+        SDL_RenderDebugText(renderer, 220.0f, 307.0f,
+                            "UNSAVED PROGRESS SINCE LAST SAVE WILL BE LOST");
 
         const SDL_FRect yesOption{266.0f, 355.0f, 112.0f, 36.0f};
         const SDL_FRect noOption{422.0f, 355.0f, 112.0f, 36.0f};
@@ -937,27 +963,29 @@ void renderPauseMenu(SDL_Renderer* renderer, const GameModel& model,
         SDL_RenderDebugText(renderer, 278.0f, 420.0f,
                             "LEFT/RIGHT SELECT     ENTER CONFIRM");
     } else {
-        const SDL_FRect panel{235.0f, 153.0f, 330.0f, 365.0f};
+        const SDL_FRect panel{235.0f, 122.0f, 330.0f, 434.0f};
         drawWoodPanel(renderer, panel);
         SDL_SetRenderDrawColor(renderer, 248, 231, 197, 255);
-        SDL_RenderDebugText(renderer, 365.0f, 181.0f, "PAUSED");
+        SDL_RenderDebugText(renderer, 365.0f, 148.0f, "PAUSED");
         SDL_SetRenderDrawColor(renderer, 214, 187, 148, 255);
-        SDL_RenderDebugText(renderer, 295.0f, 207.0f,
+        SDL_RenderDebugText(renderer, 295.0f, 175.0f,
                             "TAKE A BREATHER, FARMER");
 
-        const SDL_FRect resumeOption{275.0f, 246.0f, 250.0f, 36.0f};
-        const SDL_FRect restartOption{275.0f, 291.0f, 250.0f, 36.0f};
-        const SDL_FRect titleOption{275.0f, 336.0f, 250.0f, 36.0f};
-        const SDL_FRect quitOption{275.0f, 381.0f, 250.0f, 36.0f};
+        const SDL_FRect resumeOption{275.0f, 207.0f, 250.0f, 34.0f};
+        const SDL_FRect saveOption{275.0f, 249.0f, 250.0f, 34.0f};
+        const SDL_FRect restartOption{275.0f, 291.0f, 250.0f, 34.0f};
+        const SDL_FRect titleOption{275.0f, 333.0f, 250.0f, 34.0f};
+        const SDL_FRect quitOption{275.0f, 375.0f, 250.0f, 34.0f};
         drawMenuOption(renderer, resumeOption, "RESUME", selectedOption == 0);
-        drawMenuOption(renderer, restartOption, "RESTART FARM", selectedOption == 1);
-        drawMenuOption(renderer, titleOption, "RETURN TO TITLE", selectedOption == 2);
-        drawMenuOption(renderer, quitOption, "QUIT GAME", selectedOption == 3);
+        drawMenuOption(renderer, saveOption, "SAVE GAME", selectedOption == 1);
+        drawMenuOption(renderer, restartOption, "RESTART FARM", selectedOption == 2);
+        drawMenuOption(renderer, titleOption, "RETURN TO TITLE", selectedOption == 3);
+        drawMenuOption(renderer, quitOption, "QUIT GAME", selectedOption == 4);
 
         SDL_SetRenderDrawColor(renderer, 220, 190, 151, 255);
-        SDL_RenderDebugText(renderer, 298.0f, 455.0f,
+        SDL_RenderDebugText(renderer, 298.0f, 431.0f,
                             "UP/DOWN SELECT     ENTER CONFIRM");
-        SDL_RenderDebugText(renderer, 349.0f, 473.0f, "ESC RESUME");
+        SDL_RenderDebugText(renderer, 349.0f, 449.0f, "ESC RESUME");
     }
 
     SDL_RenderPresent(renderer);

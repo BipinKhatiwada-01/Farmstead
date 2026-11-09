@@ -19,8 +19,10 @@ void renderWorld(SDL_Renderer* renderer, const GameModel& model,
                  std::string_view message = {},
                  HudMessageTone messageTone = HudMessageTone::INFO);
 
-// Draw the main menu. selectedOption: 0 = New Farm, 1 = Quit.
-void renderTitleScreen(SDL_Renderer* renderer, int selectedOption);
+// Draw the main menu. selectedOption: 0 = New Farm, 1 = Continue, 2 = Quit.
+// Continue is visually disabled when hasSaveGame is false.
+void renderTitleScreen(SDL_Renderer* renderer, int selectedOption,
+                       bool hasSaveGame, std::string_view message = {});
 
 // Draw the farm with a pause overlay. When confirming is true, show a
 // destructive-action confirmation instead of the pause options.
