@@ -26,6 +26,10 @@ public:
 
   // Returns the current growth stage based on accumulated growth points.
   CropStage stage() const;
+
+  int getGrowthPoints() const;
+
+  bool restoreState(int points, bool watered);
 };
 
 }; // namespace farmstead

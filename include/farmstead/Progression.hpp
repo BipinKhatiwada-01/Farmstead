@@ -12,6 +12,8 @@ public:
 
   bool canRecordCoins(int amount) const;
 
+  bool restoreState(int totalCoinsEarned);
+
 private:
   int totalCoinsEarned{0};
 

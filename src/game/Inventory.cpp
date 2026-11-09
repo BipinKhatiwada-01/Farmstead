@@ -30,3 +30,11 @@ int Inventory::produceCount() const { return produce; }
 bool Inventory::canRemoveProduce(int quantity) const {
   return quantity > 0 && quantity <= produce;
 }
+
+bool Inventory::restoreState(int produce) {
+  if (produce < 0) {
+    return false;
+  }
+  this->produce = produce;
+  return true;
+}
