@@ -321,4 +321,161 @@ bool GameModel::trySleep() {
 
 int GameModel::currentDay() const { return day; }
 
+GameSaveData GameModel::exportSaveData() const {
+  GameSaveData data;
+
+  data.day = day;
+  data.playerPosition = player;
+  data.facing = facing;
+
+  data.produce = inventory.produceCount();
+  data.coins = economy.coins();
+  data.totalCoinsEarned = progression.coinsEarned();
+
+  for (int row = 0; row < kMapHeight; ++row) {
+    for (int column = 0; column < kMapWidth; ++column) {
+      const std::size_t index = indexOf(column, row);
+
+      TilePosition position{column, row};
+
+      // Save tilled tiles.
+      if (tilled[index]) {
+        data.tilledTiles.push_back(position);
+      }
+
+      // Save crops and their internal growth state.
+      if (crops[index].has_value()) {
+        const Crop &crop = crops[index].value();
+
+        data.crops.push_back(
+            {position, crop.getGrowthPoints(), crop.isWateredToday()});
+      }
+    }
+  }
+
+  return data;
+}
+
+bool GameModel::restoreSaveData(const GameSaveData &data) {
+
+  // validation
+
+  if (data.day < 1) {
+    return false;
+  }
+
+  if (!isInBounds(data.playerPosition.column, data.playerPosition.row)) {
+    return false;
+  }
+
+  // Player must be on a walkable ground tile.
+  if (tileAt(data.playerPosition.column, data.playerPosition.row) !=
+      TileType::GROUND) {
+    return false;
+  }
+
+  // Validate the direction.
+  switch (data.facing) {
+  case Direction::UP:
+  case Direction::DOWN:
+  case Direction::LEFT:
+  case Direction::RIGHT:
+    break;
+
+  default:
+    return false;
+  }
+
+  // Build temporary farming state.
+
+  std::array<bool, kMapWidth * kMapHeight> newTilled{};
+
+  std::array<std::optional<Crop>, kMapWidth * kMapHeight> newCrops{};
+
+  // Restore tilled tiles.
+  for (const TilePosition &position : data.tilledTiles) {
+
+    if (!isInBounds(position.column, position.row)) {
+      return false;
+    }
+
+    if (tileAt(position.column, position.row) != TileType::GROUND) {
+      return false;
+    }
+
+    const std::size_t index = indexOf(position.column, position.row);
+
+    // Duplicate position.
+    if (newTilled[index]) {
+      return false;
+    }
+
+    newTilled[index] = true;
+  }
+
+  // Restore crops.
+  for (const CropSaveData &savedCrop : data.crops) {
+
+    const TilePosition &position = savedCrop.position;
+
+    if (!isInBounds(position.column, position.row)) {
+      return false;
+    }
+
+    const std::size_t index = indexOf(position.column, position.row);
+
+    // A crop must be on ground that has been tilled.
+    if (!newTilled[index]) {
+      return false;
+    }
+
+    // Duplicate crop position.
+    if (newCrops[index].has_value()) {
+      return false;
+    }
+
+    Crop crop;
+
+    if (!crop.restoreState(savedCrop.growthPoints, savedCrop.wateredToday)) {
+      return false;
+    }
+
+    newCrops[index] = crop;
+  }
+
+  // temporary state
+  Inventory newInventory;
+
+  if (!newInventory.restoreState(data.produce)) {
+    return false;
+  }
+
+  Economy newEconomy;
+
+  if (!newEconomy.restoreState(data.coins)) {
+    return false;
+  }
+
+  Progression newProgression;
+
+  if (!newProgression.restoreState(data.totalCoinsEarned)) {
+    return false;
+  }
+
+  // restoring state
+
+  day = data.day;
+  player = data.playerPosition;
+  facing = data.facing;
+
+  tilled = newTilled;
+  crops = std::move(newCrops);
+
+  inventory = std::move(newInventory);
+  economy = std::move(newEconomy);
+  progression = std::move(newProgression);
+
+  return true;
+}
+
 } // namespace farmstead
