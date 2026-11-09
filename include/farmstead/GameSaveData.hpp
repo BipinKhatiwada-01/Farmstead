@@ -1,6 +1,6 @@
 #pragma once
 
-#include "farmstead/game_model.hpp"
+#include "farmstead/GameTypes.hpp"
 #include <vector>
 
 namespace farmstead {

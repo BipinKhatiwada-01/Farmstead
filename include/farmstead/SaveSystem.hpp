@@ -1,9 +1,9 @@
 #pragma once
 
-#include "farmstead/game_model.hpp"
+#include "../../include/farmstead/game_model.hpp"
 #include <filesystem>
 
-using namespace farmstead;
+namespace farmstead {
 
 class SaveSystem {
 public:
@@ -11,3 +11,4 @@ public:
 
   static bool load(GameModel &game, const std::filesystem::path &path);
 };
+} // namespace farmstead
