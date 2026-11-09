@@ -124,9 +124,6 @@ json validLoadJson() {
   data["player"] = {{"column", save.playerPosition.column},
                     {"row", save.playerPosition.row},
                     {"facing", "LEFT"}};
-  // The duplicate root key lets gameplay-validation tests reach the current
-  // decoder, which presently reads facing from the root instead of player.
-  data["facing"] = "LEFT";
   data["tilledTiles"] = json::array();
   for (const TilePosition &tile : save.tilledTiles) {
     data["tilledTiles"].push_back({{"column", tile.column}, {"row", tile.row}});
@@ -241,6 +238,20 @@ TEST_CASE("SaveSystem overwrites an existing save file") {
   }
 }
 
+TEST_CASE("SaveSystem cleans up its temporary file when replacing fails") {
+  TemporaryDirectory directory;
+  const auto path = directory.file("save-target");
+  REQUIRE(std::filesystem::create_directory(path));
+  const GameModel model;
+
+  REQUIRE_FALSE(SaveSystem::save(model, path));
+
+  REQUIRE(std::filesystem::is_directory(path));
+  for (const auto &entry : std::filesystem::directory_iterator(directory.file("."))) {
+    REQUIRE(entry.path().filename() == path.filename());
+  }
+}
+
 TEST_CASE("SaveSystem loads a valid version one JSON file") {
   TemporaryDirectory directory;
   const auto path = directory.file("valid-load.json");
@@ -322,6 +333,23 @@ TEST_CASE("SaveSystem rejects invalid files without changing the game") {
     const auto path = directory.file("incorrect-type.json");
     json data = validLoadJson();
     data["day"] = "fourteen";
+    REQUIRE(writeJson(path, data));
+    requireLoadFailsUnchanged(model, path);
+  }
+
+  SECTION("integer fields reject floating point values") {
+    const auto path = directory.file("floating-point-day.json");
+    json data = validLoadJson();
+    data["day"] = 14.5;
+    REQUIRE(writeJson(path, data));
+    requireLoadFailsUnchanged(model, path);
+  }
+
+  SECTION("tilled tile and crop collections must be arrays") {
+    const auto path = directory.file("incorrect-collections.json");
+    json data = validLoadJson();
+    data["tilledTiles"] = json::object();
+    data["crops"] = json::object();
     REQUIRE(writeJson(path, data));
     requireLoadFailsUnchanged(model, path);
   }

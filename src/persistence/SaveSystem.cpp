@@ -3,15 +3,58 @@
 
 #include <exception>
 #include <filesystem>
+#include <limits>
 #include <nlohmann/json.hpp>
 
 #include <fstream>
+#include <stdexcept>
+#include <system_error>
+#include <utility>
 
 namespace farmstead {
 
 namespace {
 
 using json = nlohmann::json;
+
+int getInt(const json &value) {
+  if (value.is_number_unsigned()) {
+    const auto number = value.get<json::number_unsigned_t>();
+    if (number > static_cast<json::number_unsigned_t>(
+                     std::numeric_limits<int>::max())) {
+      throw std::invalid_argument("Integer value is out of range");
+    }
+    return static_cast<int>(number);
+  }
+
+  if (!value.is_number_integer()) {
+    throw std::invalid_argument("Expected an integer value");
+  }
+
+  const auto number = value.get<json::number_integer_t>();
+  if (number < std::numeric_limits<int>::min() ||
+      number > std::numeric_limits<int>::max()) {
+    throw std::invalid_argument("Integer value is out of range");
+  }
+  return static_cast<int>(number);
+}
+
+class TemporaryFileCleanup {
+public:
+  explicit TemporaryFileCleanup(std::filesystem::path path)
+      : path(std::move(path)) {}
+
+  ~TemporaryFileCleanup() {
+    std::error_code error;
+    std::filesystem::remove(path, error);
+  }
+
+  TemporaryFileCleanup(const TemporaryFileCleanup &) = delete;
+  TemporaryFileCleanup &operator=(const TemporaryFileCleanup &) = delete;
+
+private:
+  std::filesystem::path path;
+};
 
 std::string directionToString(Direction direction) {
   switch (direction) {
@@ -47,9 +90,9 @@ json serialize(const GameSaveData &data) {
   result["version"] = 1;
   result["day"] = data.day;
 
-  result["player"] = {{"column", data.playerPosition.column},
-                      {"row", data.playerPosition.row},
-                      {"facing", directionToString(data.facing)}};
+  result["player"] = json::object({{"column", data.playerPosition.column},
+                                   {"row", data.playerPosition.row},
+                                   {"facing", directionToString(data.facing)}});
 
   result["tilledTiles"] = json::array();
 
@@ -67,9 +110,10 @@ json serialize(const GameSaveData &data) {
                                {"wateredToday", crop.wateredToday}});
   }
 
-  result["inventory"] = {"produce", data.produce};
-  result["economy"] = {"coins", data.coins};
-  result["progression"] = {"totalCoinsEarned", data.totalCoinsEarned};
+    result["inventory"] = json::object({{"produce", data.produce}});
+    result["economy"] = json::object({{"coins", data.coins}});
+  result["progression"] =
+      json::object({{"totalCoinsEarned", data.totalCoinsEarned}});
 
   return result;
 }
@@ -77,36 +121,44 @@ json serialize(const GameSaveData &data) {
 GameSaveData deserialize(const json &data) {
   GameSaveData result;
 
-  if (data.at("version").get<int>() != 1) {
+  if (getInt(data.at("version")) != 1) {
     throw std::invalid_argument("Unsupported save version");
   }
 
-  result.day = data.at("day").get<int>();
+  result.day = getInt(data.at("day"));
 
   const auto &player = data.at("player");
 
-  result.playerPosition = {player.at("column").get<int>(),
-                           player.at("row").get<int>()};
+  result.playerPosition = {getInt(player.at("column")),
+                           getInt(player.at("row"))};
 
-  result.facing = directionFromString(data.at("facing").get<std::string>());
+  result.facing = directionFromString(player.at("facing").get<std::string>());
 
-  for (const auto &tile : data.at("tilledTiles")) {
-    result.tilledTiles.push_back(
-        {tile.at("column").get<int>(), tile.at("row").get<int>()});
+  const auto &tilledTiles = data.at("tilledTiles");
+  if (!tilledTiles.is_array()) {
+    throw std::invalid_argument("Expected tilledTiles to be an array");
+  }
+  for (const auto &tile : tilledTiles) {
+    result.tilledTiles.push_back({getInt(tile.at("column")),
+                                  getInt(tile.at("row"))});
   }
 
-  for (const auto &crop : data.at("crops")) {
+  const auto &crops = data.at("crops");
+  if (!crops.is_array()) {
+    throw std::invalid_argument("Expected crops to be an array");
+  }
+  for (const auto &crop : crops) {
     result.crops.push_back(
-        {{crop.at("column").get<int>(), crop.at("row").get<int>()},
-         crop.at("growthPoints").get<int>(),
+        {{getInt(crop.at("column")), getInt(crop.at("row"))},
+         getInt(crop.at("growthPoints")),
          crop.at("wateredToday").get<bool>()});
   }
 
-  result.produce = data.at("inventory").at("produce").get<int>();
-  result.coins = data.at("economy").at("coins").get<int>();
+  result.produce = getInt(data.at("inventory").at("produce"));
+  result.coins = getInt(data.at("economy").at("coins"));
 
   result.totalCoinsEarned =
-      data.at("progression").at("totalCoinsEarned").get<int>();
+      getInt(data.at("progression").at("totalCoinsEarned"));
 
   return result;
 }
@@ -123,6 +175,7 @@ bool SaveSystem::save(const GameModel &game,
 
     std::filesystem::path tempPath = path;
     tempPath += ".tmp";
+    TemporaryFileCleanup cleanup(tempPath);
 
     {
       std::ofstream file(tempPath);
@@ -135,8 +188,11 @@ bool SaveSystem::save(const GameModel &game,
       file.flush();
 
       if (!file.good()) {
-        file.close();
-        std::filesystem::remove(tempPath);
+        return false;
+      }
+
+      file.close();
+      if (file.fail()) {
         return false;
       }
     }
