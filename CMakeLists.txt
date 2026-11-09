@@ -7,6 +7,18 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(SDL3 REQUIRED CONFIG)
 
+# External dependencies
+include(FetchContent)
+
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.12.0
+    GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(nlohmann_json)
+
 # Core game logic (independent of SDL)
 add_library(
     farmstead-core
@@ -15,12 +27,19 @@ add_library(
     src/game/Inventory.cpp
     src/game/Economy.cpp
     src/game/Progression.cpp
+    src/persistence/SaveSystem.cpp
 )
 
 target_include_directories(
     farmstead-core
     PUBLIC
         include
+)
+
+target_link_libraries(
+    farmstead-core
+    PRIVATE
+        nlohmann_json::nlohmann_json
 )
 
 target_compile_features(farmstead-core PUBLIC cxx_std_20)
