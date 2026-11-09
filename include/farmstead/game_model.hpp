@@ -21,6 +21,8 @@
 
 #include "farmstead/Crop.hpp"
 #include "farmstead/Economy.hpp"
+#include "farmstead/GameSaveData.hpp"
+#include "farmstead/GameTypes.hpp"
 #include "farmstead/Inventory.hpp"
 #include "farmstead/Progression.hpp"
 #include <array>
@@ -35,29 +37,6 @@ enum class TileType {
   OBSTACLE, ///< Blocks movement. Also what tileAt() reports off the map.
   MARKET,
   FARMHOUSE,
-};
-
-/// A direction for a one-tile move. UP/DOWN change the row, LEFT/RIGHT the
-/// column.
-enum class Direction {
-  UP,    ///< row - 1 (towards the top of the screen)
-  DOWN,  ///< row + 1
-  LEFT,  ///< column - 1
-  RIGHT, ///< column + 1
-};
-
-/// A tile coordinate. Not pixels. Plain ints (not unsigned) so that
-/// out-of-range values like -1 can be represented and rejected.
-struct TilePosition {
-  int column;
-  int row;
-
-  bool operator==(const TilePosition &obj) const {
-    if (column == obj.column && row == obj.row) {
-      return true;
-    }
-    return false;
-  }
 };
 
 //
@@ -190,6 +169,10 @@ public:
   bool trySleep();
 
   int currentDay() const;
+
+  // persistence
+  GameSaveData exportSaveData() const;
+  bool restoreSaveData(const GameSaveData &data);
 
 private:
   // Flat index of a tile, row-major: row * kMapWidth + column.
